@@ -1,30 +1,25 @@
-import { db, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "./firebase.js";
+import { watchCollection, createItem, removeItem } from "./database.js";
 
-const membersRef = collection(db, "v1_members");
+const COLLECTION = "v1_members";
 
 export function watchMembers(callback) {
-  return onSnapshot(membersRef, snapshot => {
-    const members = snapshot.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...docSnap.data()
-    }));
-    callback(members);
-  });
+  return watchCollection(COLLECTION, callback);
 }
 
 export async function addMember(member) {
-  if (!member.name.trim()) {
+  const name = member.name.trim();
+
+  if (!name) {
     throw new Error("Member name is required");
   }
 
-  await addDoc(membersRef, {
-    name: member.name.trim(),
+  return createItem(COLLECTION, {
+    name,
     emoji: member.emoji || "👤",
-    role: member.role || "member",
-    createdAt: serverTimestamp()
+    role: member.role || "member"
   });
 }
 
 export async function deleteMember(id) {
-  await deleteDoc(doc(db, "v1_members", id));
+  return removeItem(COLLECTION, id);
 }
