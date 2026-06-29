@@ -122,18 +122,21 @@ $("backToMembers").onclick = () => {
   $("workspacePanel").classList.add("hidden");
 };
 
-$("addFolderBtn").onclick = async () => {
+$("addItemBtn").onclick = async () => {
   if (!selectedMemberId) {
     alert("Select a member first");
     return;
   }
 
-  const title = prompt("Folder name");
+  const type = prompt("Type: folder, task, note, checklist", "folder");
+if (!type) return;
+
+const title = prompt(`${type} name`);
   if (!title) return;
 
   await addNode({
     title,
-    type: "folder",
+    type,
     memberId: selectedMemberId,
     parentId: currentParentId
   });
