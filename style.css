@@ -77,3 +77,38 @@ small {
 .empty {
   color: #6b7280;
 }
+.hidden {
+  display: none;
+}
+.member-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.member-info div {
+  display: block;
+}
+
+.member-info strong {
+  display: block;
+  font-size: 18px;
+  color: #111827;
+}
+
+.member-info small {
+  display: block;
+  color: #6b7280;
+}
+
+.hidden {
+  display: none;
+}
