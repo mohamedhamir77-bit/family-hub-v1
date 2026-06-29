@@ -1,5 +1,8 @@
 import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode } from "./nodes.js";
+import { testWorkspaceModule } from "./workspace.js";
+
+testWorkspaceModule();
 
 const $ = id => document.getElementById(id);
 
