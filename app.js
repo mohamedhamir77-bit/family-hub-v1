@@ -13,7 +13,7 @@ function renderMembers() {
   }
 
   list.innerHTML = members.map(member => `
-    <div class="card member-card">
+    <div class="card member-card" data-member-id="${member.id}">
       <div class="member-info">
         <span class="avatar">${member.emoji || "👤"}</span>
         <div>
@@ -25,21 +25,40 @@ function renderMembers() {
     </div>
   `).join("");
 
+  document.querySelectorAll(".member-card").forEach(card => {
+    card.onclick = event => {
+      if (event.target.tagName === "BUTTON") return;
+
+      const member = members.find(m => m.id === card.dataset.memberId);
+
+      $("workspaceTitle").textContent = `${member.emoji || "👤"} ${member.name}`;
+      $("workspacePanel").classList.remove("hidden");
+      $("workspacePanel").scrollIntoView({ behavior: "smooth" });
+    };
+  });
+
   document.querySelectorAll("[data-delete]").forEach(button => {
-    button.onclick = async () => {
-      await deleteMember(button.dataset.delete);
+    button.onclick = async event => {
+      event.stopPropagation();
+      if (confirm("Delete this member?")) {
+        await deleteMember(button.dataset.delete);
+      }
     };
   });
 }
 
+$("backToMembers").onclick = () => {
+  $("workspacePanel").classList.add("hidden");
+};
+
 $("memberForm").onsubmit = async event => {
   event.preventDefault();
 
-  const name = $("memberName").value;
-  const emoji = $("memberEmoji").value;
-  const role = $("memberRole").value;
-
-  await addMember({ name, emoji, role });
+  await addMember({
+    name: $("memberName").value,
+    emoji: $("memberEmoji").value,
+    role: $("memberRole").value
+  });
 
   $("memberForm").reset();
   $("memberEmoji").value = "👤";
