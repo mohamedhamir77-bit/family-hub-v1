@@ -1,22 +1,26 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Family Hub v1</title>
+  <title>Family Hub v2</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Family Hub v1</h1>
-    <p id="syncStatus">Starting…</p>
+  <header class="app-header">
+    <div>
+      <h1>Family Hub v2</h1>
+      <p id="syncStatus">Starting…</p>
+    </div>
   </header>
 
-  <main>
-    <section class="panel">
-      <h2>Members</h2>
+  <main class="layout">
+    <section id="membersPanel" class="panel">
+      <div class="section-title">
+        <h2>Members</h2>
+      </div>
 
-      <form id="memberForm">
+      <form id="memberForm" class="form-grid">
         <input id="memberName" placeholder="Name" required>
         <select id="memberEmoji">
           <option>👤</option>
@@ -30,17 +34,35 @@
           <option value="child">Child</option>
           <option value="member">Member</option>
         </select>
-        <button>Add member</button>
+        <button type="submit">Add member</button>
       </form>
 
-      <div id="membersList"></div>
-      <section id="workspacePanel" class="panel hidden">
-  <button id="backToMembers">← Back to members</button>
-  <h2 id="workspaceTitle">Workspace</h2>
-  <p class="empty">Nothing here yet.</p>
-</section>
-  </main>
+      <div id="membersList" class="list"></div>
+    </section>
 
-  <script type="module" src="app.js"></script>
+    <section id="workspacePanel" class="panel hidden">
+      <button id="backToMembers" class="ghost" type="button">← Back to members</button>
+      <h2 id="workspaceTitle">Workspace</h2>
+
+      <div class="workspace-actions">
+        <button id="addFolderBtn" type="button">📁 Add Folder</button>
+      </div>
+
+      <div id="folderList" class="list">
+        <p class="empty">Nothing here yet.</p>
+      </div>
+    </section>
+  </main>
+<script>
+window.addEventListener("error", function (e) {
+  document.getElementById("syncStatus").textContent = "JS error: " + e.message;
+});
+
+window.addEventListener("unhandledrejection", function (e) {
+  document.getElementById("syncStatus").textContent =
+    "Promise error: " + (e.reason?.message || e.reason);
+});
+</script>
+  <script type="module" src="app.js?v=2"></script>
 </body>
 </html>
