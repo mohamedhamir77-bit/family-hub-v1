@@ -1,6 +1,7 @@
 import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode } from "./nodes.js";
 import { testWorkspaceModule, nodeIcon } from "./workspace.js";
+import { showAddDialog } from "./dialogs.js";
 testWorkspaceModule();
 
 const $ = id => document.getElementById(id);
@@ -127,15 +128,12 @@ $("addItemBtn").onclick = async () => {
     return;
   }
 
-  const type = prompt("Type: folder, task, note, checklist", "folder");
-if (!type) return;
-
-const title = prompt(`${type} name`);
-  if (!title) return;
+  const result = showAddDialog();
+  if (!result) return;
 
   await addNode({
-    title,
-    type,
+    title: result.title,
+    type: result.type,
     memberId: selectedMemberId,
     parentId: currentParentId
   });
