@@ -63,6 +63,26 @@ window.addEventListener("unhandledrejection", function (e) {
     "Promise error: " + (e.reason?.message || e.reason);
 });
 </script>
+
+<div id="addModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>➕ Add</h2>
+
+    <div class="type-grid">
+      <button type="button" data-type="folder">📁 Folder</button>
+      <button type="button" data-type="task">✅ Task</button>
+      <button type="button" data-type="note">📝 Note</button>
+      <button type="button" data-type="checklist">☑ Checklist</button>
+    </div>
+
+    <input id="addItemName" placeholder="Name">
+
+    <div class="modal-actions">
+      <button id="cancelAddModal" type="button" class="ghost">Cancel</button>
+      <button id="createAddModal" type="button">Create</button>
+    </div>
+  </div>
+</div>
   <script type="module" src="app.js?v=2"></script>
 </body>
 </html>

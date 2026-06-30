@@ -1,24 +1,38 @@
+const $ = id => document.getElementById(id);
+
+let selectedType = "folder";
+
 export function showAddDialog() {
-  const type = prompt(
-    "What do you want to add?\n\nfolder = 📁 Folder\ntask = ✅ Task\nnote = 📝 Note\nchecklist = ☑ Checklist",
-    "folder"
-  );
+  return new Promise(resolve => {
+    const modal = $("addModal");
+    const nameInput = $("addItemName");
 
-  if (!type) return null;
+    selectedType = "folder";
+    nameInput.value = "";
+    modal.classList.remove("hidden");
+    nameInput.focus();
 
-  const cleanType = type.trim().toLowerCase();
+    document.querySelectorAll("[data-type]").forEach(button => {
+      button.onclick = () => {
+        selectedType = button.dataset.type;
+        nameInput.focus();
+      };
+    });
 
-  if (!["folder", "task", "note", "checklist"].includes(cleanType)) {
-    alert("Please type folder, task, note, or checklist.");
-    return null;
-  }
+    $("cancelAddModal").onclick = () => {
+      modal.classList.add("hidden");
+      resolve(null);
+    };
 
-  const title = prompt(`${cleanType} name`);
+    $("createAddModal").onclick = () => {
+      const title = nameInput.value.trim();
+      if (!title) return;
 
-  if (!title || !title.trim()) return null;
-
-  return {
-    type: cleanType,
-    title: title.trim()
-  };
+      modal.classList.add("hidden");
+      resolve({
+        type: selectedType,
+        title
+      });
+    };
+  });
 }

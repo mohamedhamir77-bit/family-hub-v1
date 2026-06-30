@@ -128,7 +128,7 @@ $("addItemBtn").onclick = async () => {
     return;
   }
 
-  const result = showAddDialog();
+  const result = await showAddDialog();
   if (!result) return;
 
   await addNode({
