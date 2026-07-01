@@ -208,3 +208,22 @@ small { display: block; color: var(--muted); margin-top: 2px; }
   background: white;
   border: 1px solid #d1d5db;
 }
+.details-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.details-panel label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.details-panel input {
+  width: 100%;
+  margin-top: 6px;
+  box-sizing: border-box;
+}

@@ -1,5 +1,5 @@
 import { watchMembers, addMember, deleteMember } from "./members.js";
-import { watchNodes, addNode, deleteNode } from "./nodes.js";
+import { watchNodes, addNode, deleteNode, updateNode } from "./nodes.js";
 import { testWorkspaceModule, nodeIcon } from "./workspace.js";
 import { showAddDialog } from "./dialogs.js";
 import { renderBreadcrumbs } from "./breadcrumbs.js";
@@ -11,6 +11,7 @@ let members = [];
 let nodes = [];
 let selectedMemberId = null;
 let currentParentId = null;
+let selectedNode = null;
 
 function currentMember() {
   return members.find(member => member.id === selectedMemberId);
@@ -106,13 +107,22 @@ function renderWorkspace() {
     </div>
   `).join("");
 
-  document.querySelectorAll("[data-node-id]").forEach(card => {
-    card.onclick = event => {
-      if (event.target.tagName === "BUTTON") return;
-      currentParentId = card.dataset.nodeId;
+document.querySelectorAll("[data-node-id]").forEach(card => {
+  card.onclick = event => {
+    if (event.target.tagName === "BUTTON") return;
+
+    selectedNode = nodes.find(node => node.id === card.dataset.nodeId);
+
+    $("detailsTitle").value = selectedNode.title || "";
+    $("detailsType").value = selectedNode.type || "";
+    $("detailsPanel").classList.remove("hidden");
+
+    if (selectedNode.type === "folder") {
+      currentParentId = selectedNode.id;
       renderWorkspace();
-    };
-  });
+    }
+  };
+});
 
   document.querySelectorAll("[data-delete-node]").forEach(button => {
     button.onclick = async event => {
@@ -164,7 +174,16 @@ $("memberForm").onsubmit = async event => {
   $("memberForm").reset();
   $("memberEmoji").value = "👤";
 };
+$("saveDetailsBtn").onclick = async () => {
+  if (!selectedNode) return;
 
+  await updateNode(selectedNode.id, {
+    title: $("detailsTitle").value.trim()
+  });
+
+  selectedNode = null;
+  $("detailsPanel").classList.add("hidden");
+};
 watchMembers(newMembers => {
   members = newMembers;
   renderMembers();

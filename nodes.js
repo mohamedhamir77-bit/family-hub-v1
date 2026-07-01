@@ -1,4 +1,4 @@
-import { watchCollection, createItem, removeItem } from "./database.js";
+import { watchCollection, createItem, removeItem, updateItem } from "./database.js";
 
 const COLLECTION = "v1_nodes";
 
@@ -23,4 +23,7 @@ export function addNode(node) {
 
 export function deleteNode(id) {
   return removeItem(COLLECTION, id);
+}
+export async function updateNode(id, data) {
+  return updateItem(COLLECTION, id, data);
 }
