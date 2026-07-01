@@ -49,24 +49,30 @@
         <button id="addItemBtn" type="button">➕ Add</button>
       </div>
 
-      <div id="folderList" class="list">
-        <p class="empty">Nothing here yet.</p>
-      </div>
-      <div id="detailsPanel" class="details-panel hidden">
-  <h3>Details</h3>
+      <div class="workspace-layout">
 
-  <label>
-    Title
-    <input id="detailsTitle" />
-  </label>
+  <div id="folderList" class="list"></div>
 
-  <label>
-    Type
-    <input id="detailsType" disabled />
-  </label>
+  <div id="detailsPanel" class="details-panel hidden">
+    <h3>Details</h3>
 
-  <button id="saveDetailsBtn" type="button">Save changes</button>
+    <label>
+      Title
+      <input id="detailsTitle">
+    </label>
+
+    <label>
+      Type
+      <input id="detailsType" disabled>
+    </label>
+
+    <button id="saveDetailsBtn" type="button">
+      Save changes
+    </button>
+  </div>
+
 </div>
+  
     </section>
   </main>
 <script>
