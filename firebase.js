@@ -6,7 +6,8 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -21,4 +22,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
-export { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp };
+export { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, };

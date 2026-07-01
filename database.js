@@ -1,5 +1,13 @@
-import { db, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "./firebase.js";
-
+import {
+  db,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  updateDoc
+} from "./firebase.js";
 export function watchCollection(collectionName, callback, onError) {
   return onSnapshot(
     collection(db, collectionName),
@@ -23,4 +31,7 @@ export function createItem(collectionName, data) {
 
 export function removeItem(collectionName, id) {
   return deleteDoc(doc(db, collectionName, id));
+}
+export async function updateItem(collectionName, id, data) {
+  return updateDoc(doc(db, collectionName, id), data);
 }
