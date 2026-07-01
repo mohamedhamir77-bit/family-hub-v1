@@ -116,7 +116,7 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
     $("detailsTitle").value = selectedNode.title || "";
     $("detailsType").value = selectedNode.type || "";
     $("detailsPanel").classList.remove("hidden");
-
+    $("detailsPanel").scrollIntoView({ behavior: "smooth" });
     if (selectedNode.type === "folder") {
       currentParentId = selectedNode.id;
       renderWorkspace();
