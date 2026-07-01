@@ -2,6 +2,7 @@ import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode } from "./nodes.js";
 import { testWorkspaceModule, nodeIcon } from "./workspace.js";
 import { showAddDialog } from "./dialogs.js";
+import { renderBreadcrumbs } from "./breadcrumbs.js";
 testWorkspaceModule();
 
 const $ = id => document.getElementById(id);
@@ -70,6 +71,18 @@ function renderWorkspace() {
   $("workspacePanel").dataset.memberId = member.id;
   $("workspaceTitle").textContent = `${member.emoji || "👤"} ${member.name}`;
   $("workspacePanel").classList.remove("hidden");
+  renderBreadcrumbs({
+  nodes,
+  currentParentId,
+  goHome: () => {
+    currentParentId = null;
+    renderWorkspace();
+  },
+  goToNode: nodeId => {
+    currentParentId = nodeId;
+    renderWorkspace();
+  }
+});
   $("workspacePanel").scrollIntoView({ behavior: "smooth" });
 
   const list = $("folderList");

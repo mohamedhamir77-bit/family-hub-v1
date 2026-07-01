@@ -192,3 +192,19 @@ small { display: block; color: var(--muted); margin-top: 2px; }
 .type-grid button.selected::after {
   content: " ✓";
 }
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 18px;
+  padding: 10px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.breadcrumb button {
+  color: #2563eb;
+  background: white;
+  border: 1px solid #d1d5db;
+}
