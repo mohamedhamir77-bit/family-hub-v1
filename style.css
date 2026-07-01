@@ -183,3 +183,12 @@ small { display: block; color: var(--muted); margin-top: 2px; }
   justify-content: flex-end;
   gap: 10px;
 }
+.type-grid button.selected {
+  outline: 4px solid #111827;
+  background: #1d4ed8;
+  transform: scale(1.03);
+}
+
+.type-grid button.selected::after {
+  content: " ✓";
+}
