@@ -115,6 +115,9 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
 
     $("detailsTitle").value = selectedNode.title || "";
     $("detailsType").value = selectedNode.type || "";
+    $("detailsDone").checked = selectedNode.done === true;
+    $("detailsDueDate").value = selectedNode.dueDate || "";
+    $("detailsPriority").value = selectedNode.priority || "";
     $("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
     if (selectedNode.type === "folder") {
@@ -178,8 +181,11 @@ $("saveDetailsBtn").onclick = async () => {
   if (!selectedNode) return;
 
   await updateNode(selectedNode.id, {
-    title: $("detailsTitle").value.trim()
-  });
+  title: $("detailsTitle").value.trim(),
+  done: $("detailsDone").checked,
+  dueDate: $("detailsDueDate").value,
+  priority: $("detailsPriority").value
+});
 
   selectedNode = null;
   $("detailsPanel").classList.add("hidden");
