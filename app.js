@@ -13,6 +13,40 @@ let selectedMemberId = null;
 let currentParentId = null;
 let selectedNode = null;
 
+function updateDashboard() {
+  const today = new Date().toISOString().split("T")[0];
+
+  const overdue = nodes.filter(n =>
+    n.type === "task" &&
+    !n.done &&
+    n.dueDate &&
+    n.dueDate < today
+  ).length;
+
+  const dueToday = nodes.filter(n =>
+    n.type === "task" &&
+    !n.done &&
+    n.dueDate === today
+  ).length;
+
+  const upcoming = nodes.filter(n =>
+    n.type === "task" &&
+    !n.done &&
+    n.dueDate &&
+    n.dueDate > today
+  ).length;
+
+  const completed = nodes.filter(n =>
+    n.type === "task" &&
+    n.done
+  ).length;
+
+  $("overdueCount").textContent = overdue;
+  $("todayCount").textContent = dueToday;
+  $("upcomingCount").textContent = upcoming;
+  $("completedCount").textContent = completed;
+}
+
 function currentMember() {
   return members.find(member => member.id === selectedMemberId);
 }
@@ -203,6 +237,9 @@ watchMembers(newMembers => {
 
 watchNodes(newNodes => {
   nodes = newNodes;
+
+  updateDashboard();
+
   if (selectedMemberId) renderWorkspace();
   $("syncStatus").textContent = "Online • synced";
 });
