@@ -100,7 +100,12 @@ function renderWorkspace() {
         <span class="avatar">${node.type === "folder" ? "📁" : "✅"}</span>
         <div>
           <strong>${node.title}</strong>
-          <small>${node.type}</small>
+<small>
+  ${node.type}
+  ${node.done ? " • Completed" : ""}
+  ${node.dueDate ? ` • Due: ${node.dueDate}` : ""}
+  ${node.priority ? ` • Priority: ${node.priority}` : ""}
+</small>
         </div>
       </div>
       <button class="danger" data-delete-node="${node.id}">Delete</button>
