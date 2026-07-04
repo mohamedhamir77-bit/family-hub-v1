@@ -323,29 +323,40 @@ function showDashboardResults(filter) {
         </div>
 
         <div class="meta-row">
-          ${
-            item.dueDate
-              ? `<span class="badge date">📅 ${item.dueDate}</span>`
-              : `<span class="badge">No due date</span>`
-          }
 
-          ${
-            item.priority
-              ? `<span class="badge priority-${item.priority}">
-                  ${
-                    item.priority === "high"
-                      ? "🔴"
-                      : item.priority === "medium"
-                      ? "🟡"
-                      : "🟢"
-                  }
-                  ${item.priority}
-                </span>`
-              : ""
-          }
+  ${
+    members.find(member => member.id === item.memberId)
+      ? `<span class="badge">
+          ${members.find(member => member.id === item.memberId).emoji || "👤"}
+          ${members.find(member => member.id === item.memberId).name}
+        </span>`
+      : ""
+  }
 
-          ${item.done ? `<span class="badge done">✅ Done</span>` : ""}
-        </div>
+  ${
+    item.dueDate
+      ? `<span class="badge date">📅 ${item.dueDate}</span>`
+      : `<span class="badge">No due date</span>`
+  }
+
+  ${
+    item.priority
+      ? `<span class="badge priority-${item.priority}">
+          ${
+            item.priority === "high"
+              ? "🔴"
+              : item.priority === "medium"
+              ? "🟡"
+              : "🟢"
+          }
+          ${item.priority}
+        </span>`
+      : ""
+  }
+
+  ${item.done ? `<span class="badge done">✅ Done</span>` : ""}
+
+</div>
 
       </div>
     `).join("")}
@@ -453,12 +464,12 @@ function showCalendarDay(dateString) {
     year: "numeric"
   });
 
-  const tasksForDay = nodes.filter(node =>
+  const itemsForDay = nodes.filter(node =>
     (node.type === "task" || node.type === "event") &&
     node.dueDate === dateString
   );
 
-  if (!tasksForDay.length) {
+  if (!itemsForDay.length) {
     taskList.innerHTML = `<p>No tasks or events due on this day.</p>`;
     panel.classList.remove("hidden");
     panel.scrollIntoView({ behavior: "smooth" });
@@ -466,23 +477,80 @@ function showCalendarDay(dateString) {
   }
 
   const memberGroups = members
-    .map(member => {
-      const memberItems = tasksForDay.filter(item => item.memberId === member.id);
-
-      return {
-        member,
-        items: memberItems
-      };
-    })
+    .map(member => ({
+      member,
+      items: itemsForDay.filter(item => item.memberId === member.id)
+    }))
     .filter(group => group.items.length > 0);
 
   taskList.innerHTML = memberGroups.map(group => `
-    <div class="calendar-member-summary">
-      <strong>
-        ${group.member.emoji || "👤"} ${group.member.name} (${group.items.length})
-      </strong>
+    <div class="calendar-member-group">
+      <button class="calendar-member-summary" type="button" data-calendar-member-id="${group.member.id}">
+        ▶ ${group.member.emoji || "👤"} ${group.member.name} (${group.items.length})
+      </button>
+
+      <div class="calendar-member-items hidden" id="calendar-member-${group.member.id}">
+        ${group.items.map(item => `
+          <div class="calendar-day-task" data-calendar-task-id="${item.id}">
+            <strong>
+              ${
+                item.type === "event"
+                  ? "📅"
+                  : item.done
+                  ? "✅"
+                  : item.priority === "high"
+                  ? "🔴"
+                  : item.priority === "medium"
+                  ? "🟡"
+                  : item.priority === "low"
+                  ? "🟢"
+                  : "📌"
+              }
+              ${item.title}
+            </strong>
+          </div>
+        `).join("")}
+      </div>
     </div>
   `).join("");
+
+  document.querySelectorAll("[data-calendar-member-id]").forEach(button => {
+    button.onclick = () => {
+      const memberId = button.dataset.calendarMemberId;
+      const itemBox = document.getElementById(`calendar-member-${memberId}`);
+
+      itemBox.classList.toggle("hidden");
+
+      button.classList.toggle("expanded", !itemBox.classList.contains("hidden"));
+
+      button.textContent = itemBox.classList.contains("hidden")
+        ? button.textContent.replace("▼", "▶")
+        : button.textContent.replace("▶", "▼");
+    };
+  });
+
+  document.querySelectorAll("[data-calendar-task-id]").forEach(card => {
+    card.onclick = () => {
+      const item = nodes.find(node => node.id === card.dataset.calendarTaskId);
+      if (!item) return;
+
+      selectedMemberId = item.memberId;
+      selectedNode = item;
+      currentParentId = item.parentId || null;
+
+      renderMembers();
+      renderWorkspace();
+
+      $("detailsTitle").value = item.title || "";
+      $("detailsType").value = item.type || "";
+      $("detailsDone").checked = item.done === true;
+      $("detailsDueDate").value = item.dueDate || "";
+      $("detailsPriority").value = item.priority || "";
+
+      $("detailsPanel").classList.remove("hidden");
+      $("detailsPanel").scrollIntoView({ behavior: "smooth" });
+    };
+  });
 
   panel.classList.remove("hidden");
   panel.scrollIntoView({ behavior: "smooth" });

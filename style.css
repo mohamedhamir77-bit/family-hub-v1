@@ -549,3 +549,31 @@ small {
   background: #f8fafc;
   border: 1px solid #e5e7eb;
 }
+.calendar-member-summary {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.calendar-member-items {
+  margin-bottom: 12px;
+  padding-left: 8px;
+}
+.calendar-member-summary,
+.calendar-member-summary:hover {
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.calendar-member-summary.expanded {
+  background: #eef2ff;
+  border-color: #2563eb;
+  color: #0f172a;
+}
