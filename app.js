@@ -366,6 +366,8 @@ function renderCalendar() {
 
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const dateString = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const todayString = new Date().toISOString().split("T")[0];
+const isToday = dateString === todayString;
 
     const tasksForDay = nodes.filter(node =>
       node.type === "task" &&
@@ -373,7 +375,7 @@ function renderCalendar() {
     );
 
     days.push(`
-      <div class="calendar-day">
+      <div class="calendar-day ${isToday ? "today" : ""}">
         <strong>${day}</strong>
 
         ${tasksForDay.map(task => `

@@ -430,3 +430,12 @@ small {
   background: white;
   font-size: 0.8rem;
 }
+.calendar-day.today {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.calendar-day.today strong {
+  color: #2563eb;
+}
