@@ -232,7 +232,29 @@ $("saveDetailsBtn").onclick = async () => {
 };
 document.querySelectorAll("[data-dashboard-filter]").forEach(card => {
   card.onclick = () => {
-    showDashboardResults(card.dataset.dashboardFilter);
+    const filter = card.dataset.dashboardFilter;
+    const results = $("dashboardResults");
+
+    // Clicking the selected card closes it
+    if (selectedDashboardFilter === filter) {
+      selectedDashboardFilter = null;
+
+      card.classList.remove("selected");
+      results.classList.add("hidden");
+      results.innerHTML = "";
+
+      return;
+    }
+
+    selectedDashboardFilter = filter;
+
+    document.querySelectorAll("[data-dashboard-filter]").forEach(otherCard => {
+      otherCard.classList.remove("selected");
+    });
+
+    card.classList.add("selected");
+
+    showDashboardResults(filter);
   };
 });
 watchMembers(newMembers => {
