@@ -190,6 +190,13 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
     $("detailsDone").checked = selectedNode.done === true;
     $("detailsDueDate").value = selectedNode.dueDate || "";
     $("detailsPriority").value = selectedNode.priority || "";
+    $("detailsRepeat").value = selectedNode.repeat || "none";
+    $("detailsRepeatUntil").value = selectedNode.repeatUntil || "";
+
+$("detailsRotationEnabled").checked =
+  selectedNode.rotationEnabled === true;
+
+renderRotationMembers(selectedNode.rotationMembers || []);
     $("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
     if (selectedNode.type === "folder") {
@@ -242,12 +249,18 @@ $("addItemBtn").onclick = async () => {
   if (!result) return;
 
   await addNode({
-    title: result.title,
-    type: result.type,
-    memberId: selectedMemberId,
-    parentId: currentParentId
-  });
-};
+  title: result.title,
+  type: result.type,
+  memberId: selectedMemberId,
+  parentId: currentParentId,
+
+  repeat: "none",
+  repeatUntil: "",
+  rotationEnabled: false,
+  rotationMembers: [],
+  rotationIndex: 0
+});
+}; 
 
 $("memberForm").onsubmit = async event => {
   event.preventDefault();
@@ -273,11 +286,72 @@ $("saveDetailsBtn").onclick = async () => {
   return;
 }
 
-  await updateNode(selectedNode.id, {
+  let newDueDate = $("detailsDueDate").value;
+let newDone = $("detailsDone").checked;
+const rotationMembers = Array.from(
+  document.querySelectorAll("#rotationMembersList input:checked")
+).map(input => input.value);
+
+let newMemberId = selectedNode.memberId;
+let newRotationIndex = selectedNode.rotationIndex || 0;
+
+if (
+  $("detailsRepeat").value &&
+  $("detailsRepeat").value !== "none" &&
+  selectedNode.done !== true &&
+  newDone === true
+) {
+  const nextDate = getNextRepeatDate(newDueDate, $("detailsRepeat").value);
+
+  if (nextDate && (!$("detailsRepeatUntil").value || nextDate <= $("detailsRepeatUntil").value)) {
+  newDueDate = nextDate;
+  newDone = false;
+
+  if (
+    $("detailsRotationEnabled").checked &&
+    rotationMembers.length > 1
+  ) {
+    const currentIndex = rotationMembers.indexOf(selectedNode.memberId);
+    newRotationIndex =
+      currentIndex >= 0
+        ? (currentIndex + 1) % rotationMembers.length
+        : 0;
+
+    newMemberId = rotationMembers[newRotationIndex];
+  }
+}
+
+}
+let completedAt = selectedNode.completedAt || "";
+
+if (newDone === true && selectedNode.done !== true) {
+  completedAt = new Date().toISOString();
+
+  await addNode({
+    title: selectedNode.title,
+    type: "activity",
+    memberId: selectedNode.memberId,
+    completedAt: completedAt,
+    originalType: selectedNode.type,
+    recurring: selectedNode.repeat && selectedNode.repeat !== "none"
+  });
+}
+
+if (newDone === false) {
+  completedAt = "";
+}
+await updateNode(selectedNode.id, {
   title: $("detailsTitle").value.trim(),
-  done: $("detailsDone").checked,
-  dueDate: $("detailsDueDate").value,
-  priority: $("detailsPriority").value
+  memberId: newMemberId,
+  done: newDone,
+  completedAt: completedAt,
+  dueDate: newDueDate,
+  priority: $("detailsPriority").value,
+  repeat: $("detailsRepeat").value,
+  repeatUntil: $("detailsRepeatUntil").value,
+  rotationEnabled: $("detailsRotationEnabled").checked,
+  rotationMembers: rotationMembers,
+  rotationIndex: newRotationIndex
 });
 
   selectedNode = null;
@@ -319,10 +393,12 @@ watchMembers(newMembers => {
 watchNodes(newNodes => {
   nodes = newNodes;
 
-  updateDashboard();
+updateDashboard();
 renderCalendar();
 updateGreeting();
 updateTodaySummary();
+updateParentDashboard();
+updateParentActivity();
 runGlobalSearch();
 
 if (selectedMemberId) renderWorkspace();
@@ -423,14 +499,43 @@ function showDashboardResults(filter) {
     $("detailsDone").checked = item.done === true;
     $("detailsDueDate").value = item.dueDate || "";
     $("detailsPriority").value = item.priority || "";
+    $("detailsRepeat").value = item.repeat || "none";
+    $("detailsRepeatUntil").value = item.repeatUntil || "";
+    $("detailsRotationEnabled").checked =
+  item.rotationEnabled === true;
+
+renderRotationMembers(item.rotationMembers || []);
 
     $("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
   };
 });
-
-  
 }
+function getNextRepeatDate(dateString, repeat) {
+  if (!dateString || !repeat || repeat === "none") return null;
+
+  const date = new Date(dateString + "T00:00:00");
+
+  if (repeat === "daily") {
+    date.setDate(date.getDate() + 1);
+  } else if (repeat === "weekly") {
+    date.setDate(date.getDate() + 7);
+  } else if (repeat === "monthly") {
+    date.setMonth(date.getMonth() + 1);
+  } else if (repeat === "yearly") {
+    date.setFullYear(date.getFullYear() + 1);
+  } else {
+    return null;
+  }
+
+  return date.toISOString().split("T")[0];
+}
+function occursOnDate(item, dateString) {
+  if (!item.dueDate) return false;
+
+  return item.dueDate === dateString;
+}
+  
 function renderCalendar() {
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -467,7 +572,7 @@ const isToday = dateString === todayString;
 
     const tasksForDay = nodes.filter(node =>
   (node.type === "task" || node.type === "event") &&
-  node.dueDate === dateString
+  occursOnDate(node, dateString)
 );
 
     days.push(`
@@ -544,9 +649,9 @@ function showCalendarDay(dateString) {
   });
 
   const itemsForDay = nodes.filter(node =>
-    (node.type === "task" || node.type === "event") &&
-    node.dueDate === dateString
-  );
+  (node.type === "task" || node.type === "event") &&
+  occursOnDate(node, dateString)
+);
 
   if (!itemsForDay.length) {
     taskList.innerHTML = `<p>No tasks or events due on this day.</p>`;
@@ -625,6 +730,12 @@ function showCalendarDay(dateString) {
       $("detailsDone").checked = item.done === true;
       $("detailsDueDate").value = item.dueDate || "";
       $("detailsPriority").value = item.priority || "";
+      $("detailsRepeat").value = item.repeat || "none";
+      $("detailsRepeatUntil").value = item.repeatUntil || "";
+      $("detailsRotationEnabled").checked =
+  item.rotationEnabled === true;
+
+renderRotationMembers(item.rotationMembers || []);
 
       $("detailsPanel").classList.remove("hidden");
       $("detailsPanel").scrollIntoView({ behavior: "smooth" });
@@ -815,6 +926,12 @@ function runGlobalSearch() {
     $("detailsDone").checked = item.done === true;
     $("detailsDueDate").value = item.dueDate || "";
     $("detailsPriority").value = item.priority || "";
+    $("detailsRepeat").value = item.repeat || "none";
+    $("detailsRepeatUntil").value = item.repeatUntil || "";
+    $("detailsRotationEnabled").checked =
+  item.rotationEnabled === true;
+
+renderRotationMembers(item.rotationMembers || []);
 
     $("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
@@ -826,10 +943,21 @@ const searchInput = $("globalSearchInput");
 if (searchInput) {
   searchInput.oninput = runGlobalSearch;
 }
+function updateParentModeButton() {
+  $("parentModeBtn").textContent = parentMode
+    ? "🔓 Parent mode on"
+    : "🔒 Child mode on";
+
+  $("parentDashboardPanel").classList.toggle(
+    "hidden",
+    !parentMode
+  );
+}
+
 $("parentModeBtn").onclick = () => {
   if (parentMode) {
     parentMode = false;
-    $("parentModeBtn").textContent = "🔒 Parent mode";
+    updateParentModeButton();
     return;
   }
 
@@ -837,8 +965,147 @@ $("parentModeBtn").onclick = () => {
 
   if (enteredPin === parentPin) {
     parentMode = true;
-    $("parentModeBtn").textContent = "🔓 Parent mode on";
+    updateParentModeButton();
   } else {
     alert("Incorrect PIN");
   }
 };
+
+updateParentModeButton();
+function renderRotationMembers(selectedIds = []) {
+  const list = $("rotationMembersList");
+
+  list.innerHTML = members.map(member => `
+    <label class="rotation-member">
+      <input
+        type="checkbox"
+        value="${member.id}"
+        ${selectedIds.includes(member.id) ? "checked" : ""}
+      >
+      ${member.emoji || "👤"} ${member.name}
+    </label>
+  `).join("");
+}
+function updateParentDashboard() {
+  if (!$("parentIncompleteCount")) return;
+  const today = new Date().toISOString().split("T")[0];
+
+  const items = nodes.filter(node =>
+    node.type === "task" || node.type === "event"
+  );
+
+  $("parentIncompleteCount").textContent =
+    items.filter(item => !item.done).length;
+
+  $("parentCompletedCount").textContent =
+    items.filter(item => item.done).length;
+
+  $("parentOverdueCount").textContent =
+    items.filter(item =>
+      !item.done &&
+      item.dueDate &&
+      item.dueDate < today
+    ).length;
+
+  $("parentRecurringCount").textContent =
+    items.filter(item =>
+      item.repeat &&
+      item.repeat !== "none"
+    ).length;
+
+  $("parentRotatingCount").textContent =
+    items.filter(item =>
+      item.rotationEnabled
+    ).length;
+}
+$("parentCompletedCard").onclick = () => {
+  const list = $("parentCompletedList");
+
+  const completedItems = nodes.filter(node =>
+    (node.type === "task" || node.type === "event") &&
+    node.done
+  );
+
+  if (!completedItems.length) {
+    list.innerHTML = "<p>No completed tasks.</p>";
+  } else {
+    list.innerHTML = `
+      <h3>Completed Tasks</h3>
+
+      ${completedItems.map(item => {
+        const member = members.find(m => m.id === item.memberId);
+
+        return `
+          <div class="card dashboard-result-card">
+            <strong>✅ ${item.title}</strong>
+
+            <div class="meta-row">
+              <span class="badge">
+                ${member ? `${member.emoji || "👤"} ${member.name}` : "Unknown"}
+              </span>
+
+              ${item.dueDate ? `<span class="badge date">📅 ${item.dueDate}</span>` : ""}
+
+              ${
+                item.completedAt
+                  ? `<span class="badge">✅ Completed ${new Date(item.completedAt).toLocaleDateString()}</span>`
+                  : ""
+              }
+
+              <span class="badge">${item.type}</span>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    `;
+  }
+
+  list.classList.toggle("hidden");
+};
+function updateParentActivity() {
+  const activityList = $("parentActivityList");
+  if (!activityList) return;
+
+  const activities = nodes
+    .filter(node => node.type === "activity")
+    .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+    .slice(0, 10);
+
+  if (!activities.length) {
+    activityList.innerHTML = `
+      <h3>📜 Recent Activity</h3>
+      <p>No activity yet.</p>
+    `;
+    return;
+  }
+
+  activityList.innerHTML = `
+    <h3>📜 Recent Activity</h3>
+
+    ${activities.map(item => {
+      const member = members.find(m => m.id === item.memberId);
+
+      return `
+        <div class="card dashboard-result-card">
+          <strong>✅ ${item.title}</strong>
+
+          <div class="meta-row">
+            <span class="badge">
+              ${member ? `${member.emoji || "👤"} ${member.name}` : "Unknown"}
+            </span>
+
+            <span class="badge">
+              ${item.recurring ? "🔁 Recurring" : "📌 One-off"}
+            </span>
+
+            ${
+              item.completedAt
+                ? `<span class="badge">🕒 ${new Date(item.completedAt).toLocaleString()}</span>`
+                : ""
+            }
+          </div>
+        </div>
+      `;
+    }).join("")}
+  `;
+}

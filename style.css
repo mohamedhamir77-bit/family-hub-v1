@@ -678,3 +678,32 @@ small {
 .search-result:hover {
   transform: translateX(4px);
 }
+.rotation-members-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.rotation-member {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.rotation-member input {
+  width: auto;
+  margin: 0;
+}
+.details-panel label.rotation-main-toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.details-panel label.rotation-main-toggle input {
+  width: auto;
+}
