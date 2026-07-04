@@ -302,14 +302,13 @@ function showDashboardResults(filter) {
     <h3>${filter.toUpperCase()}</h3>
 
     ${items.map(item => `
-      <div class="card dashboard-result-card">
+      <div class="card dashboard-result-card" data-dashboard-node-id="${item.id}">
 
         <div class="dashboard-result-title">
           ✅ ${item.title}
         </div>
 
         <div class="meta-row">
-
           ${
             item.dueDate
               ? `<span class="badge date">📅 ${item.dueDate}</span>`
@@ -331,12 +330,7 @@ function showDashboardResults(filter) {
               : ""
           }
 
-          ${
-            item.done
-              ? `<span class="badge done">✅ Done</span>`
-              : ""
-          }
-
+          ${item.done ? `<span class="badge done">✅ Done</span>` : ""}
         </div>
 
       </div>
@@ -344,4 +338,6 @@ function showDashboardResults(filter) {
   `;
 
   results.classList.remove("hidden");
+
+  
 }

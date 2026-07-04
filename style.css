@@ -390,3 +390,10 @@ small {
   font-weight: 700;
   margin-bottom: 10px;
 }
+.dashboard-result-card {
+  cursor: pointer;
+}
+
+.dashboard-result-card:hover {
+  transform: translateY(-1px);
+}
