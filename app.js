@@ -229,6 +229,11 @@ $("saveDetailsBtn").onclick = async () => {
   selectedNode = null;
   $("detailsPanel").classList.add("hidden");
 };
+document.querySelectorAll("[data-dashboard-filter]").forEach(card => {
+  card.onclick = () => {
+    showDashboardResults(card.dataset.dashboardFilter);
+  };
+});
 watchMembers(newMembers => {
   members = newMembers;
   renderMembers();
@@ -243,3 +248,42 @@ watchNodes(newNodes => {
   if (selectedMemberId) renderWorkspace();
   $("syncStatus").textContent = "Online • synced";
 });
+function dashboardItems(filter) {
+  const today = new Date().toISOString().split("T")[0];
+
+  return nodes.filter(n => {
+    if (n.type !== "task") return false;
+
+    if (filter === "overdue") return !n.done && n.dueDate && n.dueDate < today;
+    if (filter === "today") return !n.done && n.dueDate === today;
+    if (filter === "upcoming") return !n.done && n.dueDate && n.dueDate > today;
+    if (filter === "completed") return n.done;
+
+    return false;
+  });
+}
+function showDashboardResults(filter) {
+  const items = dashboardItems(filter);
+  const results = $("dashboardResults");
+
+  if (items.length === 0) {
+    results.innerHTML = "<p>No matching tasks.</p>";
+    results.classList.remove("hidden");
+    return;
+  }
+
+  results.innerHTML = `
+    <h3>${filter.toUpperCase()}</h3>
+    ${items.map(item => `
+      <div class="card">
+        <strong>${item.title}</strong>
+        <small>
+          ${item.dueDate || "No due date"}
+          ${item.priority ? ` • ${item.priority}` : ""}
+        </small>
+      </div>
+    `).join("")}
+  `;
+
+  results.classList.remove("hidden");
+}

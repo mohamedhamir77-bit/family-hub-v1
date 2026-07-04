@@ -22,53 +22,58 @@
 
   <div class="dashboard-grid">
 
-    <div class="dashboard-card">
+    <div class="dashboard-card" data-dashboard-filter="overdue">
       <h3>🔴 Overdue</h3>
       <p id="overdueCount">0</p>
     </div>
 
-    <div class="dashboard-card">
+    <div class="dashboard-card" data-dashboard-filter="today">
       <h3>🟡 Due Today</h3>
       <p id="todayCount">0</p>
     </div>
 
-    <div class="dashboard-card">
+    <div class="dashboard-card" data-dashboard-filter="upcoming">
       <h3>🟢 Upcoming</h3>
       <p id="upcomingCount">0</p>
     </div>
 
-    <div class="dashboard-card">
+    <div class="dashboard-card" data-dashboard-filter="completed">
       <h3>✅ Completed</h3>
       <p id="completedCount">0</p>
     </div>
 
   </div>
+
+  <div id="dashboardResults" class="dashboard-results hidden"></div>
+
 </section>
-    <section id="membersPanel" class="panel">
-      <div class="section-title">
-        <h2>Members</h2>
-      </div>
+<section id="membersPanel" class="panel">
+  <div class="section-title">
+    <h2>Members</h2>
+  </div>
 
-      <form id="memberForm" class="form-grid">
-        <input id="memberName" placeholder="Name" required>
-        <select id="memberEmoji">
-          <option>👤</option>
-          <option>👨</option>
-          <option>👩</option>
-          <option>👦</option>
-          <option>👧</option>
-        </select>
-        <select id="memberRole">
-          <option value="parent">Parent</option>
-          <option value="child">Child</option>
-          <option value="member">Member</option>
-        </select>
-        <button type="submit">Add member</button>
-      </form>
+  <form id="memberForm" class="form-grid">
+    <input id="memberName" placeholder="Name" required>
 
-      <div id="membersList" class="list"></div>
-    </section>
+    <select id="memberEmoji">
+      <option>👤</option>
+      <option>👨</option>
+      <option>👩</option>
+      <option>👦</option>
+      <option>👧</option>
+    </select>
 
+    <select id="memberRole">
+      <option value="parent">Parent</option>
+      <option value="child">Child</option>
+      <option value="member">Member</option>
+    </select>
+
+    <button type="submit">Add member</button>
+  </form>
+
+  <div id="membersList" class="list"></div>
+</section>
     <section id="workspacePanel" class="panel hidden">
       <button id="backToMembers" class="ghost" type="button">← Back to members</button>
       <h2 id="workspaceTitle">Workspace</h2>
@@ -122,6 +127,7 @@
 </div>
   
     </section>
+    
   </main>
 <script>
 window.addEventListener("error", function (e) {

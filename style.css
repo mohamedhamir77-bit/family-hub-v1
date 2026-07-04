@@ -359,3 +359,20 @@ small {
     grid-template-columns: 1fr 1fr;
   }
 }
+.dashboard-results {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-results h3 {
+  margin: 0 0 8px;
+}
+
+.dashboard-card {
+  cursor: pointer;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+}
