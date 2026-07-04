@@ -13,6 +13,7 @@ let selectedMemberId = null;
 let currentParentId = null;
 let selectedNode = null;
 let selectedDashboardFilter = null;
+let calendarDate = new Date();
 
 function updateDashboard() {
   const today = new Date().toISOString().split("T")[0];
@@ -267,8 +268,9 @@ watchNodes(newNodes => {
   nodes = newNodes;
 
   updateDashboard();
+renderCalendar();
 
-  if (selectedMemberId) renderWorkspace();
+if (selectedMemberId) renderWorkspace();
   $("syncStatus").textContent = "Online • synced";
 });
 function dashboardItems(filter) {
@@ -341,3 +343,57 @@ function showDashboardResults(filter) {
 
   
 }
+function renderCalendar() {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+
+  const monthName = calendarDate.toLocaleString("default", {
+    month: "long",
+    year: "numeric"
+  });
+
+  $("calendarTitle").textContent = monthName;
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPadding = firstDay.getDay();
+
+  const days = [];
+
+  for (let i = 0; i < startPadding; i++) {
+    days.push(`<div class="calendar-day empty"></div>`);
+  }
+
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const dateString = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    const tasksForDay = nodes.filter(node =>
+      node.type === "task" &&
+      node.dueDate === dateString
+    );
+
+    days.push(`
+      <div class="calendar-day">
+        <strong>${day}</strong>
+
+        ${tasksForDay.map(task => `
+          <div class="calendar-task">
+            ✅ ${task.title}
+          </div>
+        `).join("")}
+      </div>
+    `);
+  }
+
+  $("calendarGrid").innerHTML = days.join("");
+}
+
+$("prevMonthBtn").onclick = () => {
+  calendarDate.setMonth(calendarDate.getMonth() - 1);
+  renderCalendar();
+};
+
+$("nextMonthBtn").onclick = () => {
+  calendarDate.setMonth(calendarDate.getMonth() + 1);
+  renderCalendar();
+};
