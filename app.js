@@ -363,6 +363,28 @@ function showDashboardResults(filter) {
   `;
 
   results.classList.remove("hidden");
+  document.querySelectorAll("[data-dashboard-node-id]").forEach(card => {
+  card.onclick = () => {
+    const item = nodes.find(node => node.id === card.dataset.dashboardNodeId);
+    if (!item) return;
+
+    selectedMemberId = item.memberId;
+    selectedNode = item;
+    currentParentId = item.parentId || null;
+
+    renderMembers();
+    renderWorkspace();
+
+    $("detailsTitle").value = item.title || "";
+    $("detailsType").value = item.type || "";
+    $("detailsDone").checked = item.done === true;
+    $("detailsDueDate").value = item.dueDate || "";
+    $("detailsPriority").value = item.priority || "";
+
+    $("detailsPanel").classList.remove("hidden");
+    $("detailsPanel").scrollIntoView({ behavior: "smooth" });
+  };
+});
 
   
 }
@@ -409,14 +431,14 @@ const isToday = dateString === todayString;
       <div class="calendar-day ${isToday ? "today" : ""}" data-calendar-date="${dateString}">
         <strong>${day}</strong>
 
-        ${tasksForDay.map(task => `
+        ${tasksForDay.slice(0, 2).map(task => `
   <div class="calendar-task ${task.done ? "done" : task.priority || ""}">
     ${
-    task.type === "event"
+      task.type === "event"
         ? "📅"
-  : task.done
+        : task.done
         ? "✅"
-  : task.priority === "high"
+        : task.priority === "high"
         ? "🔴"
         : task.priority === "medium"
         ? "🟡"
@@ -427,6 +449,14 @@ const isToday = dateString === todayString;
     ${task.title}
   </div>
 `).join("")}
+
+${
+  tasksForDay.length > 2
+    ? `<div class="calendar-more" data-calendar-date="${dateString}">
+         +${tasksForDay.length - 2} more...
+       </div>`
+    : ""
+}
       </div>
     `);
   }
@@ -437,6 +467,18 @@ while (days.length < 49) {
   document.querySelectorAll("[data-calendar-date]").forEach(dayCell => {
   dayCell.onclick = () => {
     showCalendarDay(dayCell.dataset.calendarDate);
+  };
+});
+document.querySelectorAll(".calendar-more").forEach(link => {
+  link.onclick = event => {
+    event.stopPropagation();
+    showCalendarDay(link.dataset.calendarDate);
+  };
+});
+document.querySelectorAll(".calendar-more").forEach(link => {
+  link.onclick = event => {
+    event.stopPropagation();
+    showCalendarDay(link.dataset.calendarDate);
   };
 });
 }

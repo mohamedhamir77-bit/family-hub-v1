@@ -577,3 +577,14 @@ small {
   border-color: #2563eb;
   color: #0f172a;
 }
+.calendar-more {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.calendar-more:hover {
+  text-decoration: underline;
+}
