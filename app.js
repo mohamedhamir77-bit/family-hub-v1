@@ -383,7 +383,7 @@ const isToday = dateString === todayString;
     );
 
     days.push(`
-      <div class="calendar-day ${isToday ? "today" : ""}">
+      <div class="calendar-day ${isToday ? "today" : ""}" data-calendar-date="${dateString}">
         <strong>${day}</strong>
 
         ${tasksForDay.map(task => `
@@ -409,6 +409,11 @@ while (days.length < 49) {
   days.push(`<div class="calendar-day empty"></div>`);
 }
   $("calendarGrid").innerHTML = days.join("");
+  document.querySelectorAll("[data-calendar-date]").forEach(dayCell => {
+  dayCell.onclick = () => {
+    showCalendarDay(dayCell.dataset.calendarDate);
+  };
+});
 }
 
 $("prevMonthBtn").onclick = () => {
@@ -420,3 +425,87 @@ $("nextMonthBtn").onclick = () => {
   calendarDate.setMonth(calendarDate.getMonth() + 1);
   renderCalendar();
 };
+function showCalendarDay(dateString) {
+  const panel = $("calendarDayPanel");
+  const title = $("calendarDayTitle");
+  const taskList = $("calendarDayTasks");
+
+  const selectedDate = new Date(dateString + "T00:00:00");
+
+  title.textContent = selectedDate.toLocaleDateString("default", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+
+  const tasksForDay = nodes.filter(node =>
+    node.type === "task" &&
+    node.dueDate === dateString
+  );
+
+  if (!tasksForDay.length) {
+    taskList.innerHTML = `<p>No tasks due on this day.</p>`;
+  } else {
+    taskList.innerHTML = tasksForDay.map(task => `
+  <div class="calendar-day-task" data-calendar-task-id="${task.id}">
+        <strong>
+  ${
+    task.done
+      ? "✅"
+      : task.priority === "high"
+      ? "🔴"
+      : task.priority === "medium"
+      ? "🟡"
+      : task.priority === "low"
+      ? "🟢"
+      : "📌"
+  }
+  ${task.title}
+</strong>
+
+<div class="meta-row">
+  ${
+    members.find(member => member.id === task.memberId)
+      ? `<span class="badge">
+          ${members.find(member => member.id === task.memberId).emoji || "👤"}
+          ${members.find(member => member.id === task.memberId).name}
+        </span>`
+      : ""
+  }
+
+  ${task.priority ? `<span class="badge priority-${task.priority}">${task.priority}</span>` : ""}
+  ${task.done ? `<span class="badge done">Done</span>` : ""}
+</div>
+
+</div>
+    `).join("");
+  }
+
+  panel.classList.remove("hidden");
+  document.querySelectorAll("[data-calendar-task-id]").forEach(card => {
+  card.onclick = () => {
+    const task = nodes.find(node => node.id === card.dataset.calendarTaskId);
+    if (!task) return;
+
+    selectedMemberId = task.memberId;
+    selectedNode = task;
+
+    // Open the folder containing the task
+    currentParentId = task.parentId || null;
+
+    renderMembers();
+    renderWorkspace();
+
+    $("detailsTitle").value = task.title || "";
+    $("detailsType").value = task.type || "";
+    $("detailsDone").checked = task.done === true;
+    $("detailsDueDate").value = task.dueDate || "";
+    $("detailsPriority").value = task.priority || "";
+
+    $("detailsPanel").classList.remove("hidden");
+    $("detailsPanel").scrollIntoView({ behavior: "smooth" });
+  };
+});
+  panel.scrollIntoView({ behavior: "smooth" });
+}
