@@ -133,7 +133,19 @@ function renderWorkspace() {
   list.innerHTML = items.map(node => `
     <div class="card member-card" data-node-id="${node.id}">
       <div class="member-info">
-        <span class="avatar">${node.type === "folder" ? "📁" : "✅"}</span>
+        <span class="avatar">
+  ${
+    node.type === "folder"
+      ? "📁"
+      : node.type === "event"
+      ? "📅"
+      : node.type === "note"
+      ? "📝"
+      : node.type === "checklist"
+      ? "☑"
+      : "✅"
+  }
+</span>
         <div>
           <strong>${node.title}</strong>
 <div class="meta-row">
@@ -277,7 +289,7 @@ function dashboardItems(filter) {
   const today = new Date().toISOString().split("T")[0];
 
   return nodes.filter(n => {
-    if (n.type !== "task") return false;
+    if (n.type !== "task" && n.type !== "event") return false;
 
     if (filter === "overdue") return !n.done && n.dueDate && n.dueDate < today;
     if (filter === "today") return !n.done && n.dueDate === today;
@@ -378,9 +390,9 @@ function renderCalendar() {
 const isToday = dateString === todayString;
 
     const tasksForDay = nodes.filter(node =>
-      node.type === "task" &&
-      node.dueDate === dateString
-    );
+  (node.type === "task" || node.type === "event") &&
+  node.dueDate === dateString
+);
 
     days.push(`
       <div class="calendar-day ${isToday ? "today" : ""}" data-calendar-date="${dateString}">
@@ -389,9 +401,11 @@ const isToday = dateString === todayString;
         ${tasksForDay.map(task => `
   <div class="calendar-task ${task.done ? "done" : task.priority || ""}">
     ${
-      task.done
+    task.type === "event"
+        ? "📅"
+  : task.done
         ? "✅"
-        : task.priority === "high"
+  : task.priority === "high"
         ? "🔴"
         : task.priority === "medium"
         ? "🟡"
@@ -440,72 +454,36 @@ function showCalendarDay(dateString) {
   });
 
   const tasksForDay = nodes.filter(node =>
-    node.type === "task" &&
+    (node.type === "task" || node.type === "event") &&
     node.dueDate === dateString
   );
 
   if (!tasksForDay.length) {
-    taskList.innerHTML = `<p>No tasks due on this day.</p>`;
-  } else {
-    taskList.innerHTML = tasksForDay.map(task => `
-  <div class="calendar-day-task" data-calendar-task-id="${task.id}">
-        <strong>
-  ${
-    task.done
-      ? "✅"
-      : task.priority === "high"
-      ? "🔴"
-      : task.priority === "medium"
-      ? "🟡"
-      : task.priority === "low"
-      ? "🟢"
-      : "📌"
-  }
-  ${task.title}
-</strong>
-
-<div class="meta-row">
-  ${
-    members.find(member => member.id === task.memberId)
-      ? `<span class="badge">
-          ${members.find(member => member.id === task.memberId).emoji || "👤"}
-          ${members.find(member => member.id === task.memberId).name}
-        </span>`
-      : ""
+    taskList.innerHTML = `<p>No tasks or events due on this day.</p>`;
+    panel.classList.remove("hidden");
+    panel.scrollIntoView({ behavior: "smooth" });
+    return;
   }
 
-  ${task.priority ? `<span class="badge priority-${task.priority}">${task.priority}</span>` : ""}
-  ${task.done ? `<span class="badge done">Done</span>` : ""}
-</div>
+  const memberGroups = members
+    .map(member => {
+      const memberItems = tasksForDay.filter(item => item.memberId === member.id);
 
-</div>
-    `).join("");
-  }
+      return {
+        member,
+        items: memberItems
+      };
+    })
+    .filter(group => group.items.length > 0);
+
+  taskList.innerHTML = memberGroups.map(group => `
+    <div class="calendar-member-summary">
+      <strong>
+        ${group.member.emoji || "👤"} ${group.member.name} (${group.items.length})
+      </strong>
+    </div>
+  `).join("");
 
   panel.classList.remove("hidden");
-  document.querySelectorAll("[data-calendar-task-id]").forEach(card => {
-  card.onclick = () => {
-    const task = nodes.find(node => node.id === card.dataset.calendarTaskId);
-    if (!task) return;
-
-    selectedMemberId = task.memberId;
-    selectedNode = task;
-
-    // Open the folder containing the task
-    currentParentId = task.parentId || null;
-
-    renderMembers();
-    renderWorkspace();
-
-    $("detailsTitle").value = task.title || "";
-    $("detailsType").value = task.type || "";
-    $("detailsDone").checked = task.done === true;
-    $("detailsDueDate").value = task.dueDate || "";
-    $("detailsPriority").value = task.priority || "";
-
-    $("detailsPanel").classList.remove("hidden");
-    $("detailsPanel").scrollIntoView({ behavior: "smooth" });
-  };
-});
   panel.scrollIntoView({ behavior: "smooth" });
 }

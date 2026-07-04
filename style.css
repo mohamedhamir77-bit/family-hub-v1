@@ -542,3 +542,10 @@ small {
 .hidden {
   display: none;
 }
+.calendar-member-summary {
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
