@@ -12,6 +12,7 @@ let nodes = [];
 let selectedMemberId = null;
 let currentParentId = null;
 let selectedNode = null;
+let selectedDashboardFilter = null;
 
 function updateDashboard() {
   const today = new Date().toISOString().split("T")[0];
