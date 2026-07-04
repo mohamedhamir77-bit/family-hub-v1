@@ -358,7 +358,15 @@ function renderCalendar() {
   const lastDay = new Date(year, month + 1, 0);
   const startPadding = firstDay.getDay();
 
-  const days = [];
+  const days = [
+  `<div class="calendar-weekday">Sun</div>`,
+  `<div class="calendar-weekday">Mon</div>`,
+  `<div class="calendar-weekday">Tue</div>`,
+  `<div class="calendar-weekday">Wed</div>`,
+  `<div class="calendar-weekday">Thu</div>`,
+  `<div class="calendar-weekday">Fri</div>`,
+  `<div class="calendar-weekday">Sat</div>`
+];
 
   for (let i = 0; i < startPadding; i++) {
     days.push(`<div class="calendar-day empty"></div>`);
@@ -379,14 +387,27 @@ const isToday = dateString === todayString;
         <strong>${day}</strong>
 
         ${tasksForDay.map(task => `
-          <div class="calendar-task">
-            ✅ ${task.title}
-          </div>
-        `).join("")}
+  <div class="calendar-task ${task.done ? "done" : task.priority || ""}">
+    ${
+      task.done
+        ? "✅"
+        : task.priority === "high"
+        ? "🔴"
+        : task.priority === "medium"
+        ? "🟡"
+        : task.priority === "low"
+        ? "🟢"
+        : "📌"
+    }
+    ${task.title}
+  </div>
+`).join("")}
       </div>
     `);
   }
-
+while (days.length < 49) {
+  days.push(`<div class="calendar-day empty"></div>`);
+}
   $("calendarGrid").innerHTML = days.join("");
 }
 
