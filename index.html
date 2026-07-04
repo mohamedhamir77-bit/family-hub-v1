@@ -11,10 +11,61 @@
     <div>
       <h1>Family Hub v2</h1>
       <p id="syncStatus">Starting…</p>
+
+<button id="parentModeBtn" type="button" class="ghost">
+  🔒 Parent mode
+</button>
     </div>
   </header>
 
   <main class="layout">
+    <section id="homePanel" class="panel">
+
+  <div class="section-title">
+    <h2>🏠 Family Hub</h2>
+  </div>
+
+  <div class="home-card">
+
+    <h3 id="homeGreeting">Good afternoon 👋</h3>
+
+    <p>Welcome back to your Family Hub.</p>
+    <div class="search-box">
+  <input id="globalSearchInput" placeholder="Search tasks, notes, folders..." />
+</div>
+
+<div id="searchResults" class="search-results hidden"></div>
+
+    <div class="today-summary">
+
+      <div class="today-box">
+        <h4>⚠️ Overdue</h4>
+        <p id="todayOverdue">0</p>
+      </div>
+
+      <div class="today-box">
+        <h4>📅 Today</h4>
+        <p id="todayDue">0</p>
+      </div>
+
+      <div class="today-box">
+        <h4>📆 Tomorrow</h4>
+        <p id="tomorrowDue">0</p>
+      </div>
+
+    </div>
+
+    <div class="today-items">
+
+      <h3>Today's Items</h3>
+
+      <div id="todayItemsList"></div>
+
+    </div>
+
+  </div>
+
+</section>
     <section id="dashboardPanel" class="panel">
   <div class="section-title">
     <h2>📊 Dashboard</h2>

@@ -14,6 +14,8 @@ let currentParentId = null;
 let selectedNode = null;
 let selectedDashboardFilter = null;
 let calendarDate = new Date();
+let parentMode = false;
+const parentPin = "1234";
 
 function updateDashboard() {
   const today = new Date().toISOString().split("T")[0];
@@ -92,11 +94,28 @@ function renderMembers() {
 
   document.querySelectorAll("[data-delete]").forEach(button => {
     button.onclick = async event => {
-      event.stopPropagation();
-      if (confirm("Delete this member?")) {
-        await deleteMember(button.dataset.delete);
-      }
-    };
+  event.stopPropagation();
+
+  if (!parentMode) {
+    alert("Only a parent can delete members.");
+    return;
+  }
+
+  const memberItems = nodes.filter(
+    node => node.memberId === button.dataset.delete
+  );
+
+  if (memberItems.length > 0) {
+    alert(
+      "This member still has tasks, folders, notes or events. Delete or move them first."
+    );
+    return;
+  }
+
+  if (confirm("Delete this member?")) {
+    await deleteMember(button.dataset.delete);
+  }
+};
   });
 }
 
@@ -182,11 +201,17 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
 
   document.querySelectorAll("[data-delete-node]").forEach(button => {
     button.onclick = async event => {
-      event.stopPropagation();
-      if (confirm("Delete this folder?")) {
-        await deleteNode(button.dataset.deleteNode);
-      }
-    };
+  event.stopPropagation();
+
+  if (!parentMode) {
+    alert("Only a parent can delete items.");
+    return;
+  }
+
+  if (confirm("Delete this item?")) {
+    await deleteNode(button.dataset.deleteNode);
+  }
+};
   });
 }
 
@@ -202,6 +227,12 @@ $("backToMembers").onclick = () => {
 };
 
 $("addItemBtn").onclick = async () => {
+
+  if (!parentMode) {
+    alert("Only a parent can add items.");
+    return;
+  }
+
   if (!selectedMemberId) {
     alert("Select a member first");
     return;
@@ -221,6 +252,11 @@ $("addItemBtn").onclick = async () => {
 $("memberForm").onsubmit = async event => {
   event.preventDefault();
 
+  if (!parentMode) {
+    alert("Only a parent can add members.");
+    return;
+  }
+
   await addMember({
     name: $("memberName").value,
     emoji: $("memberEmoji").value,
@@ -232,6 +268,10 @@ $("memberForm").onsubmit = async event => {
 };
 $("saveDetailsBtn").onclick = async () => {
   if (!selectedNode) return;
+  if (!parentMode) {
+  alert("Only a parent can edit items.");
+  return;
+}
 
   await updateNode(selectedNode.id, {
   title: $("detailsTitle").value.trim(),
@@ -281,6 +321,9 @@ watchNodes(newNodes => {
 
   updateDashboard();
 renderCalendar();
+updateGreeting();
+updateTodaySummary();
+runGlobalSearch();
 
 if (selectedMemberId) renderWorkspace();
   $("syncStatus").textContent = "Online • synced";
@@ -475,12 +518,6 @@ document.querySelectorAll(".calendar-more").forEach(link => {
     showCalendarDay(link.dataset.calendarDate);
   };
 });
-document.querySelectorAll(".calendar-more").forEach(link => {
-  link.onclick = event => {
-    event.stopPropagation();
-    showCalendarDay(link.dataset.calendarDate);
-  };
-});
 }
 
 $("prevMonthBtn").onclick = () => {
@@ -597,3 +634,211 @@ function showCalendarDay(dateString) {
   panel.classList.remove("hidden");
   panel.scrollIntoView({ behavior: "smooth" });
 }
+function updateGreeting() {
+  const hour = new Date().getHours();
+
+  let greeting = "Good evening";
+
+  if (hour < 12) {
+    greeting = "Good morning";
+  } else if (hour < 18) {
+    greeting = "Good afternoon";
+  }
+
+  $("homeGreeting").textContent = `${greeting} 👋`;
+}
+function updateTodaySummary() {
+  const today = new Date();
+  const todayString = today.toISOString().split("T")[0];
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowString = tomorrow.toISOString().split("T")[0];
+
+  const relevantItems = nodes.filter(node =>
+    node.type === "task" || node.type === "event"
+  );
+
+  $("todayOverdue").textContent = relevantItems.filter(item =>
+    !item.done &&
+    item.dueDate &&
+    item.dueDate < todayString
+  ).length;
+
+  $("todayDue").textContent = relevantItems.filter(item =>
+    !item.done &&
+    item.dueDate === todayString
+  ).length;
+
+  $("tomorrowDue").textContent = relevantItems.filter(item =>
+    !item.done &&
+    item.dueDate === tomorrowString
+  ).length;
+
+  const todayItems = relevantItems.filter(item =>
+    !item.done &&
+    item.dueDate === todayString
+  );
+
+  const list = $("todayItemsList");
+
+  if (!todayItems.length) {
+    list.innerHTML = `
+      <p>🎉 Nothing due today. Enjoy your day!</p>
+    `;
+    return;
+  }
+
+  list.innerHTML = todayItems.map(item => {
+    const member = members.find(m => m.id === item.memberId);
+
+    return `
+      <div class="today-item">
+        <div>
+          <div class="today-item-title">
+            ${item.type === "event" ? "📅" : "📌"} ${item.title}
+          </div>
+
+          <div class="today-item-owner">
+            ${member ? `${member.emoji || "👤"} ${member.name}` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function runGlobalSearch() {
+  const input = $("globalSearchInput");
+  const results = $("searchResults");
+
+  const query = input.value.trim().toLowerCase();
+
+  if (!query) {
+    results.classList.add("hidden");
+    results.innerHTML = "";
+    return;
+  }
+
+  const matches = nodes.filter(node => {
+  const member = members.find(m => m.id === node.memberId);
+  const parent = nodes.find(n => n.id === node.parentId);
+
+  const searchableText = [
+    node.title,
+    node.type,
+    node.priority,
+    node.dueDate,
+    member?.name,
+    member?.emoji,
+    parent?.title
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return searchableText.includes(query);
+});
+
+  if (!matches.length) {
+    results.innerHTML = `
+      <div class="search-result">
+        No results found.
+      </div>
+    `;
+    results.classList.remove("hidden");
+    return;
+  }
+
+  results.innerHTML = matches.map(item => {
+  const member = members.find(m => m.id === item.memberId);
+
+  const parent =
+    nodes.find(n => n.id === item.parentId);
+
+  return `
+    <div class="search-result" data-search-id="${item.id}">
+
+      <div class="search-title">
+        ${
+          item.type === "folder"
+            ? "📁"
+            : item.type === "task"
+            ? "📌"
+            : item.type === "event"
+            ? "📅"
+            : item.type === "note"
+            ? "📝"
+            : "☑"
+        }
+
+        ${item.title}
+      </div>
+
+      <div class="search-meta">
+
+        ${
+          member
+            ? `${member.emoji || "👤"} ${member.name}`
+            : ""
+        }
+
+        ${
+          parent
+            ? ` • 📁 ${parent.title}`
+            : ""
+        }
+
+        • ${item.type}
+
+      </div>
+
+    </div>
+  `;
+}).join("");
+
+  results.classList.remove("hidden");
+  document.querySelectorAll("[data-search-id]").forEach(card => {
+  card.onclick = () => {
+    const item = nodes.find(node => node.id === card.dataset.searchId);
+    if (!item) return;
+
+    selectedMemberId = item.memberId;
+    selectedNode = item;
+    currentParentId = item.parentId || null;
+
+    renderMembers();
+    renderWorkspace();
+
+    $("detailsTitle").value = item.title || "";
+    $("detailsType").value = item.type || "";
+    $("detailsDone").checked = item.done === true;
+    $("detailsDueDate").value = item.dueDate || "";
+    $("detailsPriority").value = item.priority || "";
+
+    $("detailsPanel").classList.remove("hidden");
+    $("detailsPanel").scrollIntoView({ behavior: "smooth" });
+  };
+});
+}
+const searchInput = $("globalSearchInput");
+
+if (searchInput) {
+  searchInput.oninput = runGlobalSearch;
+}
+$("parentModeBtn").onclick = () => {
+  if (parentMode) {
+    parentMode = false;
+    $("parentModeBtn").textContent = "🔒 Parent mode";
+    return;
+  }
+
+  const enteredPin = prompt("Enter parent PIN");
+
+  if (enteredPin === parentPin) {
+    parentMode = true;
+    $("parentModeBtn").textContent = "🔓 Parent mode on";
+  } else {
+    alert("Incorrect PIN");
+  }
+};
