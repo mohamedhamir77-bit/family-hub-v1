@@ -381,3 +381,12 @@ small {
   background: #eff6ff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
+.dashboard-result-card {
+  margin-bottom: 12px;
+}
+
+.dashboard-result-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}

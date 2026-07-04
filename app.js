@@ -290,20 +290,55 @@ function showDashboardResults(filter) {
   const results = $("dashboardResults");
 
   if (items.length === 0) {
-    results.innerHTML = "<p>No matching tasks.</p>";
+    results.innerHTML = `
+      <h3>${filter.toUpperCase()}</h3>
+      <p>No matching tasks.</p>
+    `;
     results.classList.remove("hidden");
     return;
   }
 
   results.innerHTML = `
     <h3>${filter.toUpperCase()}</h3>
+
     ${items.map(item => `
-      <div class="card">
-        <strong>${item.title}</strong>
-        <small>
-          ${item.dueDate || "No due date"}
-          ${item.priority ? ` • ${item.priority}` : ""}
-        </small>
+      <div class="card dashboard-result-card">
+
+        <div class="dashboard-result-title">
+          ✅ ${item.title}
+        </div>
+
+        <div class="meta-row">
+
+          ${
+            item.dueDate
+              ? `<span class="badge date">📅 ${item.dueDate}</span>`
+              : `<span class="badge">No due date</span>`
+          }
+
+          ${
+            item.priority
+              ? `<span class="badge priority-${item.priority}">
+                  ${
+                    item.priority === "high"
+                      ? "🔴"
+                      : item.priority === "medium"
+                      ? "🟡"
+                      : "🟢"
+                  }
+                  ${item.priority}
+                </span>`
+              : ""
+          }
+
+          ${
+            item.done
+              ? `<span class="badge done">✅ Done</span>`
+              : ""
+          }
+
+        </div>
+
       </div>
     `).join("")}
   `;
