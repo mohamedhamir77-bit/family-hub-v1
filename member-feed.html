@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Member Feed | Family Hub v2</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="member-feed-page">
+    <section class="member-feed-header">
+      <h1 id="memberFeedTitle">My Tasks</h1>
+      <p id="memberFeedSubtitle">Loading your tasks…</p>
+    </section>
+
+    <section class="feed-section">
+      <h2>🔴 Overdue</h2>
+      <div id="overdueFeed" class="feed-list"></div>
+    </section>
+
+    <section class="feed-section">
+      <h2>🟡 Due Today</h2>
+      <div id="todayFeed" class="feed-list"></div>
+    </section>
+
+    <section class="feed-section">
+      <h2>🔵 Upcoming</h2>
+      <div id="upcomingFeed" class="feed-list"></div>
+    </section>
+  </main>
+
+  <script type="module" src="member-feed.js"></script>
+</body>
+</html>
