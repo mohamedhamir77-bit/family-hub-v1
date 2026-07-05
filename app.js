@@ -1,5 +1,6 @@
 import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode, updateNode } from "./nodes.js";
+import { addActivity, watchActivity } from "./activity.js";
 import { testWorkspaceModule, nodeIcon } from "./workspace.js";
 import { showAddDialog } from "./dialogs.js";
 import { renderBreadcrumbs } from "./breadcrumbs.js";
@@ -15,6 +16,7 @@ let selectedNode = null;
 let selectedDashboardFilter = null;
 let calendarDate = new Date();
 let parentMode = false;
+let activities = [];
 const parentPin = "1234";
 
 function updateDashboard() {
@@ -322,18 +324,25 @@ if (
 }
 
 }
+const wasJustCompleted =
+  $("detailsDone").checked === true &&
+  selectedNode.done !== true;
+
 let completedAt = selectedNode.completedAt || "";
 
-if (newDone === true && selectedNode.done !== true) {
+if (wasJustCompleted) {
+  console.log("Writing activity", $("detailsTitle").value.trim());
+
   completedAt = new Date().toISOString();
 
-  await addNode({
-    title: selectedNode.title,
-    type: "activity",
+  await addActivity({
+    title: $("detailsTitle").value.trim(),
     memberId: selectedNode.memberId,
     completedAt: completedAt,
     originalType: selectedNode.type,
-    recurring: selectedNode.repeat && selectedNode.repeat !== "none"
+    recurring: $("detailsRepeat").value !== "none",
+    repeat: $("detailsRepeat").value,
+    dueDate: $("detailsDueDate").value
   });
 }
 
@@ -403,6 +412,10 @@ runGlobalSearch();
 
 if (selectedMemberId) renderWorkspace();
   $("syncStatus").textContent = "Online • synced";
+});
+watchActivity(newActivities => {
+  activities = newActivities;
+  updateParentActivity();
 });
 function dashboardItems(filter) {
   const today = new Date().toISOString().split("T")[0];
@@ -1066,12 +1079,9 @@ function updateParentActivity() {
   const activityList = $("parentActivityList");
   if (!activityList) return;
 
-  const activities = nodes
-    .filter(node => node.type === "activity")
-    .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-    .slice(0, 10);
+  const recentActivities = activities.slice(0, 10);
 
-  if (!activities.length) {
+  if (!recentActivities.length) {
     activityList.innerHTML = `
       <h3>📜 Recent Activity</h3>
       <p>No activity yet.</p>
@@ -1082,7 +1092,7 @@ function updateParentActivity() {
   activityList.innerHTML = `
     <h3>📜 Recent Activity</h3>
 
-    ${activities.map(item => {
+    ${recentActivities.map(item => {
       const member = members.find(m => m.id === item.memberId);
 
       return `
@@ -1109,3 +1119,79 @@ function updateParentActivity() {
     }).join("")}
   `;
 }
+function showParentCentreResults(title, items) {
+  const results = $("parentCentreResults");
+
+  if (!items.length) {
+    results.innerHTML = `<h3>${title}</h3><p>No matching items.</p>`;
+    results.classList.remove("hidden");
+    return;
+  }
+
+  results.innerHTML = `
+    <h3>${title}</h3>
+    ${items.map(item => {
+      const member = members.find(m => m.id === item.memberId);
+
+      return `
+        <div class="card dashboard-result-card">
+          <strong>${item.title}</strong>
+          <div class="meta-row">
+            <span class="badge">${member ? `${member.emoji || "👤"} ${member.name}` : "Unknown"}</span>
+            ${item.dueDate ? `<span class="badge date">📅 ${item.dueDate}</span>` : ""}
+            ${item.priority ? `<span class="badge priority-${item.priority}">${item.priority}</span>` : ""}
+            ${item.repeat && item.repeat !== "none" ? `<span class="badge">🔁 ${item.repeat}</span>` : ""}
+            ${item.rotationEnabled ? `<span class="badge">🔄 Rotating</span>` : ""}
+          </div>
+        </div>
+      `;
+    }).join("")}
+  `;
+
+  results.classList.remove("hidden");
+}
+
+$("parentIncompleteCard").onclick = () => {
+  showParentCentreResults(
+    "📌 Incomplete Items",
+    nodes.filter(item =>
+      (item.type === "task" || item.type === "event") &&
+      !item.done
+    )
+  );
+};
+
+$("parentOverdueCard").onclick = () => {
+  const today = new Date().toISOString().split("T")[0];
+
+  showParentCentreResults(
+    "🔴 Overdue Items",
+    nodes.filter(item =>
+      (item.type === "task" || item.type === "event") &&
+      !item.done &&
+      item.dueDate &&
+      item.dueDate < today
+    )
+  );
+};
+
+$("parentRecurringCard").onclick = () => {
+  showParentCentreResults(
+    "🔁 Recurring Items",
+    nodes.filter(item =>
+      (item.type === "task" || item.type === "event") &&
+      item.repeat &&
+      item.repeat !== "none"
+    )
+  );
+};
+
+$("parentRotatingCard").onclick = () => {
+  showParentCentreResults(
+    "🔄 Rotating Items",
+    nodes.filter(item =>
+      (item.type === "task" || item.type === "event") &&
+      item.rotationEnabled
+    )
+  );
+};
