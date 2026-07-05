@@ -177,7 +177,21 @@ function renderWorkspace() {
 </div>
         </div>
       </div>
-      <button class="danger" data-delete-node="${node.id}">Delete</button>
+      <div class="workspace-buttons">
+  <label class="complete-checkbox">
+  <input
+    type="checkbox"
+    data-complete-node="${node.id}"
+    ${node.done ? "checked disabled" : ""}>
+  <span>Complete</span>
+  </label>
+
+  <button
+    class="danger"
+    data-delete-node="${node.id}">
+    Delete
+  </button>
+</div>
     </div>
   `).join("");
 
@@ -207,7 +221,16 @@ renderRotationMembers(selectedNode.rotationMembers || []);
     }
   };
 });
+document.querySelectorAll("[data-complete-node]").forEach(checkbox => {
+  checkbox.onchange = async event => {
+    event.stopPropagation();
 
+    const node = nodes.find(n => n.id === checkbox.dataset.completeNode);
+    if (!node) return;
+
+    await completeNodeFromList(node);
+  };
+});
   document.querySelectorAll("[data-delete-node]").forEach(button => {
     button.onclick = async event => {
   event.stopPropagation();
@@ -542,6 +565,56 @@ function getNextRepeatDate(dateString, repeat) {
   }
 
   return date.toISOString().split("T")[0];
+}
+async function completeNodeFromList(node) {
+  const completedAt = new Date().toISOString();
+
+  await addActivity({
+    title: node.title,
+    memberId: node.memberId,
+    completedAt,
+    originalType: node.type,
+    recurring: node.repeat ? node.repeat !== "none" : false,
+    repeat: node.repeat || "none",
+    dueDate: node.dueDate || ""
+  });
+
+  let newDueDate = node.dueDate || "";
+  let newDone = true;
+  let newMemberId = node.memberId;
+  let newRotationIndex = node.rotationIndex || 0;
+
+  if (node.repeat && node.repeat !== "none") {
+    const nextDate = getNextRepeatDate(newDueDate, node.repeat);
+
+    if (nextDate && (!node.repeatUntil || nextDate <= node.repeatUntil)) {
+      newDueDate = nextDate;
+      newDone = false;
+
+      if (
+        node.rotationEnabled &&
+        node.rotationMembers &&
+        node.rotationMembers.length > 1
+      ) {
+        const currentIndex = node.rotationMembers.indexOf(node.memberId);
+
+        newRotationIndex =
+          currentIndex >= 0
+            ? (currentIndex + 1) % node.rotationMembers.length
+            : 0;
+
+        newMemberId = node.rotationMembers[newRotationIndex];
+      }
+    }
+  }
+
+  await updateNode(node.id, {
+    done: newDone,
+    completedAt: newDone ? completedAt : "",
+    dueDate: newDueDate,
+    memberId: newMemberId,
+    rotationIndex: newRotationIndex
+  });
 }
 function occursOnDate(item, dateString) {
   if (!item.dueDate) return false;
@@ -1134,6 +1207,7 @@ function updateParentActivity() {
     };
   });
 }
+
 function showParentCentreResults(title, items) {
   const results = $("parentCentreResults");
 

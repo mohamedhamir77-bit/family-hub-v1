@@ -707,3 +707,117 @@ small {
 .details-panel label.rotation-main-toggle input {
   width: auto;
 }
+.complete-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.complete-checkbox input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+/* ===========================
+   Mobile layout
+=========================== */
+
+@media (max-width: 768px) {
+
+  .layout {
+    padding: 12px;
+    gap: 16px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .member-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .workspace-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .workspace-buttons button,
+  .workspace-buttons label {
+    flex: 1;
+  }
+
+  button,
+  input,
+  select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .details-panel {
+    width: 100%;
+    margin-top: 16px;
+  }
+
+  .calendar-grid {
+    font-size: 12px;
+  }
+
+  .today-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .search-box input {
+    width: 100%;
+  }
+
+  .dashboard-result-card {
+    padding: 16px;
+  }
+
+  .meta-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+}
+@media (max-width: 768px) {
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(42px, 1fr));
+    gap: 6px;
+  }
+
+  .calendar-day {
+    min-height: 72px;
+    padding: 8px 4px;
+    overflow: hidden;
+  }
+
+  .calendar-day strong {
+    font-size: 18px;
+  }
+
+  .calendar-task {
+    font-size: 0;
+    padding: 4px;
+    margin-top: 4px;
+    text-align: center;
+  }
+
+  .calendar-task::first-letter {
+    font-size: 14px;
+  }
+
+  .calendar-more {
+    font-size: 11px;
+  }
+}
