@@ -1,6 +1,6 @@
 import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode, updateNode } from "./nodes.js";
-import { addActivity, watchActivity } from "./activity.js";
+import { addActivity, watchActivity, deleteActivity } from "./activity.js";
 import { testWorkspaceModule, nodeIcon } from "./workspace.js";
 import { showAddDialog } from "./dialogs.js";
 import { renderBreadcrumbs } from "./breadcrumbs.js";
@@ -1114,10 +1114,25 @@ function updateParentActivity() {
                 : ""
             }
           </div>
+
+          <button
+            class="danger"
+            data-delete-activity="${item.id}"
+            type="button">
+            🗑 Delete
+          </button>
         </div>
       `;
     }).join("")}
   `;
+
+  document.querySelectorAll("[data-delete-activity]").forEach(button => {
+    button.onclick = async () => {
+      if (!confirm("Delete this activity item?")) return;
+
+      await deleteActivity(button.dataset.deleteActivity);
+    };
+  });
 }
 function showParentCentreResults(title, items) {
   const results = $("parentCentreResults");

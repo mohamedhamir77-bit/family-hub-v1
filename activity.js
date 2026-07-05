@@ -4,7 +4,9 @@ import {
   query,
   orderBy,
   limit,
-  onSnapshot
+  onSnapshot,
+  deleteDoc,
+  doc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import { db } from "./firebase.js";
@@ -33,4 +35,7 @@ export function watchActivity(callback) {
       }))
     );
   });
+}
+export async function deleteActivity(id) {
+  return deleteDoc(doc(db, "activity", id));
 }
