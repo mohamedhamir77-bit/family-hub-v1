@@ -316,67 +316,40 @@ let newDone = $("detailsDone").checked;
 const rotationMembers = Array.from(
   document.querySelectorAll("#rotationMembersList input:checked")
 ).map(input => input.value);
-
-let newMemberId = selectedNode.memberId;
-let newRotationIndex = selectedNode.rotationIndex || 0;
-
-if (
-  $("detailsRepeat").value &&
-  $("detailsRepeat").value !== "none" &&
-  selectedNode.done !== true &&
-  newDone === true
-) {
-  const nextDate = getNextRepeatDate(newDueDate, $("detailsRepeat").value);
-
-  if (nextDate && (!$("detailsRepeatUntil").value || nextDate <= $("detailsRepeatUntil").value)) {
-  newDueDate = nextDate;
-  newDone = false;
-
-  if (
-    $("detailsRotationEnabled").checked &&
-    rotationMembers.length > 1
-  ) {
-    const currentIndex = rotationMembers.indexOf(selectedNode.memberId);
-    newRotationIndex =
-      currentIndex >= 0
-        ? (currentIndex + 1) % rotationMembers.length
-        : 0;
-
-    newMemberId = rotationMembers[newRotationIndex];
-  }
-}
-
-}
 const wasJustCompleted =
   $("detailsDone").checked === true &&
   selectedNode.done !== true;
 
-let completedAt = selectedNode.completedAt || "";
-
 if (wasJustCompleted) {
-  console.log("Writing activity", $("detailsTitle").value.trim());
-
-  completedAt = new Date().toISOString();
-
-  await addActivity({
+  const updatedNode = {
+    ...selectedNode,
     title: $("detailsTitle").value.trim(),
-    memberId: selectedNode.memberId,
-    completedAt: completedAt,
-    originalType: selectedNode.type,
-    recurring: $("detailsRepeat").value !== "none",
+    dueDate: $("detailsDueDate").value,
+    priority: $("detailsPriority").value,
     repeat: $("detailsRepeat").value,
-    dueDate: $("detailsDueDate").value
-  });
-}
+    repeatUntil: $("detailsRepeatUntil").value,
+    rotationEnabled: $("detailsRotationEnabled").checked,
+    rotationMembers: rotationMembers
+  };
 
-if (newDone === false) {
-  completedAt = "";
+  await completeTask(updatedNode, {
+    source: "details"
+  });
+
+  selectedNode = null;
+  $("detailsPanel").classList.add("hidden");
+  return;
 }
+let newMemberId = selectedNode.memberId;
+let newRotationIndex = selectedNode.rotationIndex || 0;
+
 await updateNode(selectedNode.id, {
   title: $("detailsTitle").value.trim(),
   memberId: newMemberId,
   done: newDone,
-  completedAt: completedAt,
+  completedAt: $("detailsDone").checked
+  ? selectedNode.completedAt || new Date().toISOString()
+  : "",
   dueDate: newDueDate,
   priority: $("detailsPriority").value,
   repeat: $("detailsRepeat").value,
@@ -547,10 +520,19 @@ renderRotationMembers(item.rotationMembers || []);
   };
 });
 }
+function formatDateLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function getNextRepeatDate(dateString, repeat) {
   if (!dateString || !repeat || repeat === "none") return null;
 
-  const date = new Date(dateString + "T00:00:00");
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
 
   if (repeat === "daily") {
     date.setDate(date.getDate() + 1);
@@ -564,9 +546,11 @@ function getNextRepeatDate(dateString, repeat) {
     return null;
   }
 
-  return date.toISOString().split("T")[0];
+  return formatDateLocal(date);
 }
-async function completeNodeFromList(node) {
+async function completeTask(node, options = {}) {
+  if (!node) return;
+
   const completedAt = new Date().toISOString();
 
   await addActivity({
@@ -616,12 +600,16 @@ async function completeNodeFromList(node) {
     rotationIndex: newRotationIndex
   });
 }
+
+async function completeNodeFromList(node) {
+  await completeTask(node, {
+    source: "workspace"
+  });
+}
 function occursOnDate(item, dateString) {
   if (!item.dueDate) return false;
-
   return item.dueDate === dateString;
 }
-  
 function renderCalendar() {
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();

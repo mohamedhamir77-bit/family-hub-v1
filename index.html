@@ -30,6 +30,9 @@
     <h3 id="homeGreeting">Good afternoon 👋</h3>
 
     <p>Welcome back to your Family Hub.</p>
+
+    <section id="dailyInspirationCard" class="daily-inspiration-card"></section>
+
     <div class="search-box">
   <input id="globalSearchInput" placeholder="Search tasks, notes, folders..." />
 </div>
@@ -208,7 +211,7 @@
 </label>
 
 <label>
-  Due date
+   Due / start date
   <input id="detailsDueDate" type="date">
 </label>
 
@@ -295,6 +298,7 @@ window.addEventListener("unhandledrejection", function (e) {
     </div>
   </div>
 </div>
+  <script type="module" src="daily-inspiration.js"></script>
   <script type="module" src="app.js?v=2"></script>
 </body>
 </html>
