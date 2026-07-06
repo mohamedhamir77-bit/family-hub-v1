@@ -56,7 +56,6 @@ function updateDashboard() {
 function currentMember() {
   return members.find(member => member.id === selectedMemberId);
 }
-
 function visibleNodes() {
   return nodes.filter(node =>
     node.memberId === selectedMemberId &&
@@ -124,7 +123,12 @@ function renderMembers() {
 function renderWorkspace() {
   const member = currentMember();
 
-  if (!member) return;
+  if (!member) {
+  $("workspaceTitle").textContent = "";
+  $("folderList").innerHTML = "";
+  $("workspacePanel").classList.add("hidden");
+  return;
+}
 
   $("workspacePanel").dataset.memberId = member.id;
   $("workspaceTitle").textContent = `${member.emoji || "👤"} ${member.name}`;
@@ -593,12 +597,14 @@ async function completeTask(node, options = {}) {
   }
 
   await updateNode(node.id, {
-    done: newDone,
-    completedAt: newDone ? completedAt : "",
-    dueDate: newDueDate,
-    memberId: newMemberId,
-    rotationIndex: newRotationIndex
-  });
+  done: newDone,
+  completedAt: newDone ? completedAt : "",
+  dueDate: newDueDate,
+  memberId: newMemberId,
+  rotationIndex: newRotationIndex
+});
+selectedNode = null;
+$("detailsPanel").classList.add("hidden");
 }
 
 async function completeNodeFromList(node) {
@@ -723,9 +729,9 @@ function showCalendarDay(dateString) {
   });
 
   const itemsForDay = nodes.filter(node =>
-  (node.type === "task" || node.type === "event") &&
-  occursOnDate(node, dateString)
-);
+    (node.type === "task" || node.type === "event") &&
+    occursOnDate(node, dateString)
+  );
 
   if (!itemsForDay.length) {
     taskList.innerHTML = `<p>No tasks or events due on this day.</p>`;
@@ -734,58 +740,48 @@ function showCalendarDay(dateString) {
     return;
   }
 
-  const memberGroups = members
-    .map(member => ({
-      member,
-      items: itemsForDay.filter(item => item.memberId === member.id)
-    }))
-    .filter(group => group.items.length > 0);
+  taskList.innerHTML = itemsForDay.map(item => {
+    const member = members.find(m => m.id === item.memberId);
 
-  taskList.innerHTML = memberGroups.map(group => `
-    <div class="calendar-member-group">
-      <button class="calendar-member-summary" type="button" data-calendar-member-id="${group.member.id}">
-        ▶ ${group.member.emoji || "👤"} ${group.member.name} (${group.items.length})
-      </button>
+    return `
+      <div class="calendar-day-task" data-calendar-task-id="${item.id}">
+        <strong>
+          ${
+            item.type === "event"
+              ? "📅"
+              : item.done
+              ? "✅"
+              : item.priority === "high"
+              ? "🔴"
+              : item.priority === "medium"
+              ? "🟡"
+              : item.priority === "low"
+              ? "🟢"
+              : "📌"
+          }
+          ${item.title}
+        </strong>
 
-      <div class="calendar-member-items hidden" id="calendar-member-${group.member.id}">
-        ${group.items.map(item => `
-          <div class="calendar-day-task" data-calendar-task-id="${item.id}">
-            <strong>
-              ${
-                item.type === "event"
-                  ? "📅"
-                  : item.done
-                  ? "✅"
-                  : item.priority === "high"
-                  ? "🔴"
-                  : item.priority === "medium"
-                  ? "🟡"
-                  : item.priority === "low"
-                  ? "🟢"
-                  : "📌"
-              }
-              ${item.title}
-            </strong>
-          </div>
-        `).join("")}
+        <div class="meta-row">
+          <span class="badge">
+            ${member ? `${member.emoji || "👤"} ${member.name}` : "Unknown"}
+          </span>
+
+          ${
+            item.repeat && item.repeat !== "none"
+              ? `<span class="badge">🔁 ${item.repeat}</span>`
+              : ""
+          }
+
+          ${
+            item.rotationEnabled
+              ? `<span class="badge">🔄 Rotating</span>`
+              : ""
+          }
+        </div>
       </div>
-    </div>
-  `).join("");
-
-  document.querySelectorAll("[data-calendar-member-id]").forEach(button => {
-    button.onclick = () => {
-      const memberId = button.dataset.calendarMemberId;
-      const itemBox = document.getElementById(`calendar-member-${memberId}`);
-
-      itemBox.classList.toggle("hidden");
-
-      button.classList.toggle("expanded", !itemBox.classList.contains("hidden"));
-
-      button.textContent = itemBox.classList.contains("hidden")
-        ? button.textContent.replace("▼", "▶")
-        : button.textContent.replace("▶", "▼");
-    };
-  });
+    `;
+  }).join("");
 
   document.querySelectorAll("[data-calendar-task-id]").forEach(card => {
     card.onclick = () => {
@@ -806,10 +802,9 @@ function showCalendarDay(dateString) {
       $("detailsPriority").value = item.priority || "";
       $("detailsRepeat").value = item.repeat || "none";
       $("detailsRepeatUntil").value = item.repeatUntil || "";
-      $("detailsRotationEnabled").checked =
-  item.rotationEnabled === true;
+      $("detailsRotationEnabled").checked = item.rotationEnabled === true;
 
-renderRotationMembers(item.rotationMembers || []);
+      renderRotationMembers(item.rotationMembers || []);
 
       $("detailsPanel").classList.remove("hidden");
       $("detailsPanel").scrollIntoView({ behavior: "smooth" });
