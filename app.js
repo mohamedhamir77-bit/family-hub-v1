@@ -396,6 +396,7 @@ document.querySelectorAll("[data-dashboard-filter]").forEach(card => {
 watchMembers(newMembers => {
   members = newMembers;
   renderMembers();
+  renderPendingMemberDropdown();
   $("syncStatus").textContent = "Online • synced";
 });
 
@@ -408,6 +409,7 @@ updateGreeting();
 updateTodaySummary();
 updateParentDashboard();
 updateParentActivity();
+renderPendingTasksForSelectedMember();
 runGlobalSearch();
 
 if (selectedMemberId) renderWorkspace();
@@ -1029,6 +1031,8 @@ $("parentModeBtn").onclick = () => {
     updateParentModeButton();
     return;
   }
+  
+
 
   const enteredPin = prompt("Enter parent PIN");
 
@@ -1267,3 +1271,90 @@ $("parentRotatingCard").onclick = () => {
     )
   );
 };
+function renderPendingMemberDropdown() {
+  const select = $("pendingMemberSelect");
+  if (!select) return;
+
+  select.innerHTML = `
+    <option value="">Select member</option>
+    ${members.map(member => `
+      <option value="${member.id}">
+        ${member.emoji || "👤"} ${member.name}
+      </option>
+    `).join("")}
+  `;
+
+  select.onchange = () => {
+    renderPendingTasksForSelectedMember();
+  };
+}
+function renderPendingTasksForSelectedMember() {
+  const select = $("pendingMemberSelect");
+  const list = $("pendingTasksList");
+
+  if (!select || !list) return;
+
+  const memberId = select.value;
+  const today = new Date().toISOString().split("T")[0];
+
+  if (!memberId) {
+    list.innerHTML = "<p>Select a member to view pending tasks.</p>";
+    return;
+  }
+
+  const allTasks = nodes
+    .filter(node =>
+      node.memberId === memberId &&
+      node.type === "task" &&
+      !node.done
+    )
+    .sort((a, b) => {
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+
+  const overdueTasks = allTasks.filter(task =>
+    task.dueDate && task.dueDate < today
+  );
+
+  const pendingTasks = allTasks.filter(task =>
+    !task.dueDate || task.dueDate >= today
+  );
+
+  if (!allTasks.length) {
+    list.innerHTML = "<p>🎉 No pending or overdue tasks.</p>";
+    return;
+  }
+
+  function taskCard(task) {
+    return `
+      <div class="card dashboard-result-card">
+        <strong>
+${
+  task.priority === "high"
+    ? "🔴"
+    : task.priority === "medium"
+    ? "🟡"
+    : task.priority === "low"
+    ? "🟢"
+    : "⚫"
+}
+${task.title}
+</strong>
+
+        <div class="meta-row">
+          ${task.dueDate ? `<span class="badge date">📅 ${task.dueDate}</span>` : `<span class="badge">No date</span>`}
+          ${task.priority ? `<span class="badge priority-${task.priority}">${task.priority}</span>` : ""}
+          ${task.repeat && task.repeat !== "none" ? `<span class="badge">🔁 ${task.repeat}</span>` : ""}
+          ${task.rotationEnabled ? `<span class="badge">🔄 Rotating</span>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  list.innerHTML = `
+    ${overdueTasks.length ? `<h3>🔴 Overdue</h3>${overdueTasks.map(taskCard).join("")}` : ""}
+    ${pendingTasks.length ? `<h3>📌 Pending</h3>${pendingTasks.map(taskCard).join("")}` : ""}
+  `;
+}
