@@ -409,6 +409,7 @@ updateGreeting();
 updateTodaySummary();
 updateParentDashboard();
 updateParentActivity();
+renderPendingMemberDropdown();
 renderPendingTasksForSelectedMember();
 runGlobalSearch();
 
@@ -1275,6 +1276,13 @@ function renderPendingMemberDropdown() {
   const select = $("pendingMemberSelect");
   if (!select) return;
 
+  if (!members.length) {
+    select.innerHTML = `<option value="">Members loading...</option>`;
+    return;
+  }
+
+  const currentValue = select.value;
+
   select.innerHTML = `
     <option value="">Select member</option>
     ${members.map(member => `
@@ -1283,6 +1291,10 @@ function renderPendingMemberDropdown() {
       </option>
     `).join("")}
   `;
+
+  if (currentValue) {
+    select.value = currentValue;
+  }
 
   select.onchange = () => {
     renderPendingTasksForSelectedMember();
