@@ -173,6 +173,13 @@ function renderWorkspace() {
 </span>
         <div>
           <strong>${node.title}</strong>
+
+${
+  node.notes
+    ? `<p class="task-notes">${node.notes}</p>`
+    : ""
+}
+
 <div class="meta-row">
   <span class="badge">${node.type}</span>
   ${node.done ? `<span class="badge done">✅ Done</span>` : ""}
@@ -206,6 +213,7 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
     selectedNode = nodes.find(node => node.id === card.dataset.nodeId);
 
     $("detailsTitle").value = selectedNode.title || "";
+    $("detailsNotes").value = selectedNode.notes || "";
     $("detailsType").value = selectedNode.type || "";
     $("detailsDone").checked = selectedNode.done === true;
     $("detailsDueDate").value = selectedNode.dueDate || "";
@@ -280,6 +288,7 @@ $("addItemBtn").onclick = async () => {
   await addNode({
   title: result.title,
   type: result.type,
+  notes: "",
   memberId: selectedMemberId,
   parentId: currentParentId,
 
@@ -329,6 +338,7 @@ if (wasJustCompleted) {
     ...selectedNode,
     title: $("detailsTitle").value.trim(),
     dueDate: $("detailsDueDate").value,
+    notes: $("detailsNotes").value.trim(),
     priority: $("detailsPriority").value,
     repeat: $("detailsRepeat").value,
     repeatUntil: $("detailsRepeatUntil").value,
@@ -349,6 +359,7 @@ let newRotationIndex = selectedNode.rotationIndex || 0;
 
 await updateNode(selectedNode.id, {
   title: $("detailsTitle").value.trim(),
+  notes: $("detailsNotes").value.trim(),
   memberId: newMemberId,
   done: newDone,
   completedAt: $("detailsDone").checked
@@ -511,6 +522,7 @@ function showDashboardResults(filter) {
     renderWorkspace();
 
     $("detailsTitle").value = item.title || "";
+    $("detailsNotes").value = item.notes || "";
     $("detailsType").value = item.type || "";
     $("detailsDone").checked = item.done === true;
     $("detailsDueDate").value = item.dueDate || "";
@@ -799,6 +811,7 @@ function showCalendarDay(dateString) {
       renderWorkspace();
 
       $("detailsTitle").value = item.title || "";
+      $("detailsNotes").value = item.notes || "";
       $("detailsType").value = item.type || "";
       $("detailsDone").checked = item.done === true;
       $("detailsDueDate").value = item.dueDate || "";
@@ -994,6 +1007,7 @@ function runGlobalSearch() {
     renderWorkspace();
 
     $("detailsTitle").value = item.title || "";
+    $("detailsNotes").value = item.notes || "";
     $("detailsType").value = item.type || "";
     $("detailsDone").checked = item.done === true;
     $("detailsDueDate").value = item.dueDate || "";
@@ -1354,7 +1368,11 @@ ${
 }
 ${task.title}
 </strong>
-
+${
+  task.notes
+    ? `<p class="task-notes">${task.notes}</p>`
+    : ""
+}
         <div class="meta-row">
           ${task.dueDate ? `<span class="badge date">📅 ${task.dueDate}</span>` : `<span class="badge">No date</span>`}
           ${task.priority ? `<span class="badge priority-${task.priority}">${task.priority}</span>` : ""}

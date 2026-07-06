@@ -247,28 +247,32 @@
     <option value="yearly">Yearly</option>
   </select>
 </label>
-
 <label>
   Repeat until
   <input id="detailsRepeatUntil" type="date">
 </label>
+
 <label class="rotation-main-toggle">
   <input id="detailsRotationEnabled" type="checkbox">
   Rotate between family members
 </label>
 
 <div id="rotationMembersList" class="rotation-members-list"></div>
-    <h3>Details</h3>
+<label>
+  Title
+  <input id="detailsTitle">
+</label>
 
-    <label>
-      Title
-      <input id="detailsTitle">
-    </label>
 
-    <label>
-      Type
-      <input id="detailsType" disabled>
-    </label>
+<label>
+  Notes / instructions
+  <textarea id="detailsNotes" rows="4"></textarea>
+</label>
+
+<label>
+  Type
+  <input id="detailsType" disabled>
+</label>
 
     <button id="saveDetailsBtn" type="button">
       Save changes

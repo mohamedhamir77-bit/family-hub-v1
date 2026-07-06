@@ -932,3 +932,27 @@ small {
   color: #666;
   font-size: 0.9rem;
 }
+textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-family: inherit;
+}
+
+.task-notes {
+  margin: 8px 0;
+  white-space: pre-line;
+  color: #444;
+  font-size: 0.95rem;
+}
+.task-notes {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 3px solid #ddd;
+  color: #555;
+  font-style: italic;
+  white-space: pre-line;
+}
