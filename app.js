@@ -707,11 +707,7 @@ const isToday = dateString === todayString;
         ? "🟢"
         : "📌"
     }
-    ${
-  task.type === "event" && task.endDate && dateString !== task.dueDate
-    ? ""
-    : task.title
-}
+    ${task.title}
   </div>
 `).join("")}
 
