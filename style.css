@@ -1000,7 +1000,11 @@ textarea {
   margin-left: -10px;
   margin-right: -10px;
 }
-
+.calendar-task {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .calendar-task.event-band-end {
   border-radius: 0 999px 999px 0;
   margin-left: -10px;
