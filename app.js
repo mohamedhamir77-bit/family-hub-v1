@@ -693,20 +693,7 @@ const isToday = dateString === todayString;
         <strong>${day}</strong>
 
         ${tasksForDay.slice(0, 2).map(task => `
-  <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${eventBandClass(task, dateString)}">
-    ${
-      task.type === "event"
-        ? "📅"
-        : task.done
-        ? "✅"
-        : task.priority === "high"
-        ? "🔴"
-        : task.priority === "medium"
-        ? "🟡"
-        : task.priority === "low"
-        ? "🟢"
-        : "📌"
-    }
+  <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${task.type === "event" ? "calendar-event" : ""}">
     ${task.title}
   </div>
 `).join("")}
