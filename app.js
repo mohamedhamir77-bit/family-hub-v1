@@ -217,6 +217,7 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
     $("detailsType").value = selectedNode.type || "";
     $("detailsDone").checked = selectedNode.done === true;
     $("detailsDueDate").value = selectedNode.dueDate || "";
+    $("detailsEndDate").value = selectedNode.endDate || "";
     $("detailsPriority").value = selectedNode.priority || "";
     $("detailsRepeat").value = selectedNode.repeat || "none";
     $("detailsRepeatUntil").value = selectedNode.repeatUntil || "";
@@ -289,6 +290,7 @@ $("addItemBtn").onclick = async () => {
   title: result.title,
   type: result.type,
   notes: "",
+  endDate: "",
   memberId: selectedMemberId,
   parentId: currentParentId,
 
@@ -338,6 +340,7 @@ if (wasJustCompleted) {
     ...selectedNode,
     title: $("detailsTitle").value.trim(),
     dueDate: $("detailsDueDate").value,
+    endDate: $("detailsEndDate").value,
     notes: $("detailsNotes").value.trim(),
     priority: $("detailsPriority").value,
     repeat: $("detailsRepeat").value,
@@ -366,6 +369,7 @@ await updateNode(selectedNode.id, {
   ? selectedNode.completedAt || new Date().toISOString()
   : "",
   dueDate: newDueDate,
+  endDate: $("detailsEndDate").value,
   priority: $("detailsPriority").value,
   repeat: $("detailsRepeat").value,
   repeatUntil: $("detailsRepeatUntil").value,
@@ -526,6 +530,7 @@ function showDashboardResults(filter) {
     $("detailsType").value = item.type || "";
     $("detailsDone").checked = item.done === true;
     $("detailsDueDate").value = item.dueDate || "";
+    $("detailsEndDate").value = item.endDate || "";
     $("detailsPriority").value = item.priority || "";
     $("detailsRepeat").value = item.repeat || "none";
     $("detailsRepeatUntil").value = item.repeatUntil || "";
@@ -629,7 +634,20 @@ async function completeNodeFromList(node) {
 }
 function occursOnDate(item, dateString) {
   if (!item.dueDate) return false;
+
+  if (item.type === "event" && item.endDate) {
+    return dateString >= item.dueDate && dateString <= item.endDate;
+  }
+
   return item.dueDate === dateString;
+}
+function eventBandClass(item, dateString) {
+  if (item.type !== "event" || !item.endDate) return "";
+
+  if (dateString === item.dueDate) return "event-band-start";
+  if (dateString === item.endDate) return "event-band-end";
+
+  return "event-band-middle";
 }
 function renderCalendar() {
   const year = calendarDate.getFullYear();
@@ -675,7 +693,7 @@ const isToday = dateString === todayString;
         <strong>${day}</strong>
 
         ${tasksForDay.slice(0, 2).map(task => `
-  <div class="calendar-task ${task.done ? "done" : task.priority || ""}">
+  <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${eventBandClass(task, dateString)}">
     ${
       task.type === "event"
         ? "📅"
@@ -689,7 +707,11 @@ const isToday = dateString === todayString;
         ? "🟢"
         : "📌"
     }
-    ${task.title}
+    ${
+  task.type === "event" && task.endDate && dateString !== task.dueDate
+    ? ""
+    : task.title
+}
   </div>
 `).join("")}
 
@@ -815,6 +837,7 @@ function showCalendarDay(dateString) {
       $("detailsType").value = item.type || "";
       $("detailsDone").checked = item.done === true;
       $("detailsDueDate").value = item.dueDate || "";
+      $("detailsEndDate").value = item.endDate || "";
       $("detailsPriority").value = item.priority || "";
       $("detailsRepeat").value = item.repeat || "none";
       $("detailsRepeatUntil").value = item.repeatUntil || "";
@@ -1011,6 +1034,7 @@ function runGlobalSearch() {
     $("detailsType").value = item.type || "";
     $("detailsDone").checked = item.done === true;
     $("detailsDueDate").value = item.dueDate || "";
+    $("detailsEndDate").value = item.endDate || "";
     $("detailsPriority").value = item.priority || "";
     $("detailsRepeat").value = item.repeat || "none";
     $("detailsRepeatUntil").value = item.repeatUntil || "";
