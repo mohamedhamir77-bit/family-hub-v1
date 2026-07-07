@@ -980,3 +980,28 @@ textarea {
   border-radius: 0 999px 999px 0;
   margin-left: -8px;
 }
+.calendar-task.event-band-start,
+.calendar-task.event-band-middle,
+.calendar-task.event-band-end {
+  background: #dbeafe !important;
+  border: 1px solid #60a5fa !important;
+  color: #1e3a8a !important;
+  min-height: 24px;
+  display: block;
+}
+
+.calendar-task.event-band-start {
+  border-radius: 999px 0 0 999px;
+  margin-right: -10px;
+}
+
+.calendar-task.event-band-middle {
+  border-radius: 0;
+  margin-left: -10px;
+  margin-right: -10px;
+}
+
+.calendar-task.event-band-end {
+  border-radius: 0 999px 999px 0;
+  margin-left: -10px;
+}
