@@ -1017,3 +1017,86 @@ textarea {
     text-align: center;
     border: none;
 }
+.shared-progress-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.shared-person {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  font-size: 0.85rem;
+}
+.shared-progress-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.shared-person {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f7f8fb;
+  border: 1px solid #e5e7eb;
+  font-size: 0.95rem;
+}
+
+.shared-person small {
+  display: block;
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  color: #d97706;
+  font-size: 0.78rem;
+}
+
+.shared-swap-button {
+  min-width: 38px;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.complete-checkbox {
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+  .shared-progress-list {
+    grid-template-columns: 1fr;
+  }
+
+  .shared-person {
+    width: 100%;
+  }
+
+  .workspace-buttons {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+.shared-swap-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+}

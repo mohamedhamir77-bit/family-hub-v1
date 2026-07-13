@@ -56,11 +56,94 @@ function updateDashboard() {
 function currentMember() {
   return members.find(member => member.id === selectedMemberId);
 }
-function visibleNodes() {
-  return nodes.filter(node =>
-    node.memberId === selectedMemberId &&
-    (node.parentId || null) === (currentParentId || null)
+function sharedProgress(node) {
+  const participants = effectiveParticipantIds(node);
+
+  const completed = participants.filter(
+    memberId => node.completedBy?.[memberId] === true
+  ).length;
+
+  return {
+    completed,
+    total: participants.length
+  };
+}
+function sharedParticipantIds(node) {
+  if (!node.sharedEnabled) {
+    return [node.memberId];
+  }
+  
+  return [
+    ...new Set([
+      node.memberId,
+      ...(node.participantIds || [])
+    ])
+  ];
+}
+function rotatingParticipantIds(node) {
+  const pool = Array.isArray(node.rotationMembers)
+    ? node.rotationMembers
+    : [];
+
+  if (!node.rotationEnabled || !pool.length) {
+    return sharedParticipantIds(node);
+  }
+
+  const requestedCount =
+    Number(node.participantsPerOccurrence) || 1;
+
+  const count = Math.min(
+    Math.max(1, requestedCount),
+    pool.length
   );
+
+  const startIndex = Number.isInteger(node.rotationIndex)
+    ? node.rotationIndex
+    : 0;
+
+  return Array.from({ length: count }, (_, offset) => {
+    const index = (startIndex + offset) % pool.length;
+    return pool[index];
+  });
+}
+function effectiveParticipantIds(node) {
+  const originalIds =
+  node.rotationEnabled
+    ? rotatingParticipantIds(node)
+    : sharedParticipantIds(node);
+  const swaps = node.temporarySwaps || {};
+
+  return originalIds.map(memberId =>
+    swaps[memberId] || memberId
+  );
+}
+function visibleNodes() {
+  return nodes.filter(node => {
+    let belongsToMember;
+
+    if (
+      node.type === "task" &&
+      node.rotationEnabled &&
+      node.sharedEnabled
+    ) {
+      belongsToMember =
+        effectiveParticipantIds(node).includes(selectedMemberId);
+    } else if (
+      node.type === "task" &&
+      node.sharedEnabled
+    ) {
+      belongsToMember =
+        effectiveParticipantIds(node).includes(selectedMemberId);
+    } else {
+      belongsToMember =
+        node.memberId === selectedMemberId;
+    }
+
+    return (
+      belongsToMember &&
+      (node.parentId || null) === (currentParentId || null)
+    );
+  });
 }
 
 function renderMembers() {
@@ -185,7 +268,73 @@ ${
   ${node.done ? `<span class="badge done">✅ Done</span>` : ""}
   ${node.dueDate ? `<span class="badge date">📅 ${node.dueDate}</span>` : ""}
   ${node.priority ? `<span class="badge priority-${node.priority}">${node.priority}</span>` : ""}
+  ${
+  node.sharedEnabled
+    ? (() => {
+        const progress = sharedProgress(node);
+
+        return `
+          <span class="badge">
+            👥 ${progress.completed}/${progress.total} complete
+          </span>
+        `;
+      })()
+    : ""
+}
 </div>
+${
+  node.sharedEnabled
+    ? `
+      <div class="shared-progress-list">
+        ${(
+  node.rotationEnabled
+    ? rotatingParticipantIds(node)
+    : sharedParticipantIds(node)
+)
+  .map(memberId => {
+            const effectiveId =
+  node.temporarySwaps?.[memberId] || memberId;
+
+const member = members.find(item => item.id === effectiveId);
+
+const originalMember = members.find(
+  item => item.id === memberId
+);
+
+const completed =
+  node.completedBy?.[effectiveId] === true;
+
+            return `
+              <span class="shared-person">
+  ${completed ? "✅" : "⬜"}
+  ${member?.emoji || "👤"} ${member?.name || "Unknown"}
+${
+  effectiveId !== memberId
+    ? ` <small>(covering ${originalMember?.name || "someone"})</small>`
+    : ""
+}
+
+  ${
+  parentMode && !completed
+    ? `
+      <button
+        type="button"
+        class="ghost shared-swap-button"
+        data-swap-participant-task="${node.id}"
+        data-original-participant="${memberId}">
+        ⇄
+      </button>
+    `
+    : ""
+}
+</span>
+            `;
+          })
+          .join("")}
+      </div>
+    `
+    : ""
+}
         </div>
       </div>
       <div class="workspace-buttons">
@@ -193,15 +342,38 @@ ${
   <input
     type="checkbox"
     data-complete-node="${node.id}"
-    ${node.done ? "checked disabled" : ""}>
-  <span>Complete</span>
-  </label>
-  <button
-  type="button"
-  class="ghost"
-  data-swap-node="${node.id}">
-  ⇄ Swap
-</button>
+    ${
+      node.sharedEnabled
+        ? node.completedBy?.[selectedMemberId]
+          ? "checked disabled"
+          : ""
+        : node.done
+        ? "checked disabled"
+        : ""
+    }
+  >
+  <span>
+    ${
+      node.sharedEnabled
+        ? node.completedBy?.[selectedMemberId]
+          ? "Your part completed"
+          : "Complete your part"
+        : "Complete"
+    }
+  </span>
+</label>
+  ${
+  node.sharedEnabled
+    ? ""
+    : `
+      <button
+        type="button"
+        class="ghost"
+        data-swap-node="${node.id}">
+        ⇄ Swap
+      </button>
+    `
+}
   <button
     class="danger"
     data-delete-node="${node.id}">
@@ -231,6 +403,14 @@ $("detailsRotationEnabled").checked =
   selectedNode.rotationEnabled === true;
 
 renderRotationMembers(selectedNode.rotationMembers || []);
+$("detailsParticipantsPerOccurrence").value =
+  selectedNode.participantsPerOccurrence || 1;
+  updateAssignmentControls();
+$("detailsSharedEnabled").checked =
+  selectedNode.sharedEnabled === true;
+
+renderSharedParticipants(selectedNode.participantIds || []);
+
     $("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
     if (selectedNode.type === "folder") {
@@ -249,6 +429,24 @@ document.querySelectorAll("[data-complete-node]").forEach(checkbox => {
     await completeNodeFromList(node);
   };
 });
+document
+  .querySelectorAll("[data-swap-participant-task]")
+  .forEach(button => {
+    button.onclick = async event => {
+      event.stopPropagation();
+
+      const node = nodes.find(
+        item => item.id === button.dataset.swapParticipantTask
+      );
+
+      if (!node) return;
+
+      await swapSharedParticipant(
+        node,
+        button.dataset.originalParticipant
+      );
+    };
+  });
 document.querySelectorAll("[data-swap-node]").forEach(button => {
   button.onclick = async event => {
     event.stopPropagation();
@@ -309,14 +507,19 @@ $("addItemBtn").onclick = async () => {
   type: result.type,
   notes: "",
   endDate: "",
+  sharedEnabled: false,
+  participantIds: [],
+  temporarySwaps: {},
+  completedBy: {},
   memberId: selectedMemberId,
   parentId: currentParentId,
 
   repeat: "none",
   repeatUntil: "",
   rotationEnabled: false,
-  rotationMembers: [],
-  rotationIndex: 0
+rotationMembers: [],
+rotationIndex: 0,
+participantsPerOccurrence: 1
 });
 }; 
 
@@ -339,6 +542,18 @@ $("memberForm").onsubmit = async event => {
 };
 $("saveDetailsBtn").onclick = async () => {
   if (!selectedNode) return;
+  const latestNode = nodes.find(
+  node => node.id === selectedNode.id
+);
+
+if (!latestNode) {
+  alert("This task no longer exists. Please refresh and open it again.");
+  selectedNode = null;
+  $("detailsPanel").classList.add("hidden");
+  return;
+}
+
+selectedNode = latestNode;
   if (!parentMode) {
   alert("Only a parent can edit items.");
   return;
@@ -349,6 +564,22 @@ let newDone = $("detailsDone").checked;
 const rotationMembers = Array.from(
   document.querySelectorAll("#rotationMembersList input:checked")
 ).map(input => input.value);
+const participantIds = Array.from(
+  document.querySelectorAll("#sharedParticipantsList input:checked")
+).map(input => input.value);
+const participantsPerOccurrence = Math.min(
+  rotationMembers.length || 1,
+  Math.max(
+    1,
+    Number($("detailsParticipantsPerOccurrence").value) || 1
+  )
+);
+const rotationEnabled =
+  $("detailsRotationEnabled").checked;
+
+const sharedEnabled =
+  rotationEnabled ||
+  $("detailsSharedEnabled").checked;
 const wasJustCompleted =
   $("detailsDone").checked === true &&
   selectedNode.done !== true;
@@ -363,8 +594,18 @@ if (wasJustCompleted) {
     priority: $("detailsPriority").value,
     repeat: $("detailsRepeat").value,
     repeatUntil: $("detailsRepeatUntil").value,
-    rotationEnabled: $("detailsRotationEnabled").checked,
-    rotationMembers: rotationMembers
+    rotationEnabled: rotationEnabled,
+    rotationMembers: rotationMembers,
+participantsPerOccurrence: participantsPerOccurrence,
+sharedEnabled: sharedEnabled,
+
+participantIds: rotationEnabled
+  ? []
+  : participantIds,
+
+completedBy: sharedEnabled
+  ? selectedNode.completedBy || {}
+  : {}
   };
 
   await completeTask(updatedNode, {
@@ -391,8 +632,18 @@ await updateNode(selectedNode.id, {
   priority: $("detailsPriority").value,
   repeat: $("detailsRepeat").value,
   repeatUntil: $("detailsRepeatUntil").value,
-  rotationEnabled: $("detailsRotationEnabled").checked,
+  rotationEnabled: rotationEnabled,
   rotationMembers: rotationMembers,
+participantsPerOccurrence: participantsPerOccurrence,
+sharedEnabled: sharedEnabled,
+
+participantIds: rotationEnabled
+  ? []
+  : participantIds,
+
+completedBy: sharedEnabled
+  ? selectedNode.completedBy || {}
+  : {},
   rotationIndex: newRotationIndex
 });
 
@@ -435,6 +686,13 @@ watchMembers(newMembers => {
 
 watchNodes(newNodes => {
   nodes = newNodes;
+  if (
+  selectedNode &&
+  !nodes.some(node => node.id === selectedNode.id)
+) {
+  selectedNode = null;
+  $("detailsPanel").classList.add("hidden");
+}
 
 updateDashboard();
 renderCalendar();
@@ -642,15 +900,137 @@ newRotationIndex =
   completedAt: newDone ? completedAt : "",
   dueDate: newDueDate,
   memberId: newMemberId,
-  rotationIndex: newRotationIndex
+  rotationIndex: newRotationIndex,
+
+  completedBy: newDone
+    ? node.completedBy || {}
+    : {},
+
+  temporarySwaps: newDone
+    ? node.temporarySwaps || {}
+    : {}
 });
 selectedNode = null;
 $("detailsPanel").classList.add("hidden");
 }
+async function completeSharedTaskForMember(node, memberId) {
+  if (!node || !memberId) return;
 
+  const requiredMembers = effectiveParticipantIds(node);
+
+  if (!requiredMembers.includes(memberId)) {
+    alert("You are not assigned to this shared task.");
+    return;
+  }
+
+  const completedBy = {
+    ...(node.completedBy || {}),
+    [memberId]: true
+  };
+
+  const everyoneDone = requiredMembers.every(
+    id => completedBy[id] === true
+  );
+
+  if (!everyoneDone) {
+    await updateNode(node.id, {
+      completedBy
+    });
+
+    return;
+  }
+
+  await completeTask({
+    ...node,
+    completedBy
+  });
+}
 async function completeNodeFromList(node) {
+  if (node.sharedEnabled) {
+    await completeSharedTaskForMember(
+      node,
+      selectedMemberId
+    );
+
+    return;
+  }
+
   await completeTask(node, {
     source: "workspace"
+  });
+}
+async function swapSharedParticipant(node, originalParticipantId) {
+  if (!node || !originalParticipantId) return;
+  const currentEffectiveId =
+  node.temporarySwaps?.[originalParticipantId] || originalParticipantId;
+
+if (node.completedBy?.[currentEffectiveId] === true) {
+  alert("This person has already completed their part and cannot be swapped.");
+  return;
+}
+
+  const currentParticipantIds = effectiveParticipantIds(node);
+
+const availableMembers = members.filter(member =>
+  !currentParticipantIds.includes(member.id)
+);
+
+  if (!availableMembers.length) {
+    alert("There is nobody available to cover this person.");
+    return;
+  }
+
+  const originalMember = members.find(
+    member => member.id === originalParticipantId
+  );
+
+  const choices = availableMembers
+    .map(
+      (member, index) =>
+        `${index + 1}. ${member.emoji || "👤"} ${member.name}`
+    )
+    .join("\n");
+
+  const answer = prompt(
+    `Who should cover ${
+      originalMember?.name || "this person"
+    } for "${node.title}"?\n\n${choices}\n\nEnter a number:`
+  );
+
+  if (!answer) return;
+
+  const selectedIndex = Number(answer) - 1;
+  const replacement = availableMembers[selectedIndex];
+
+  if (!replacement) {
+    alert("Please enter a valid number.");
+    return;
+  }
+
+  const confirmed = confirm(
+    `Replace ${originalMember?.name || "this person"} with ${
+      replacement.name
+    } for this occurrence only?`
+  );
+
+  if (!confirmed) return;
+
+  await updateNode(node.id, {
+    temporarySwaps: {
+      ...(node.temporarySwaps || {}),
+      [originalParticipantId]: replacement.id
+    }
+  });
+
+  await addActivity({
+    title: `Temporary cover: ${node.title}`,
+    memberId: replacement.id,
+    previousMemberId: originalParticipantId,
+    completedAt: new Date().toISOString(),
+    originalType: "participant-swap",
+    recurring: node.repeat && node.repeat !== "none",
+    repeat: node.repeat || "none",
+    dueDate: node.dueDate || ""
   });
 }
 async function swapTaskOwner(node) {
@@ -1125,6 +1505,11 @@ function updateParentModeButton() {
     "hidden",
     !parentMode
   );
+
+  // Redraw tasks so parent-only buttons appear or disappear
+  if (selectedMemberId) {
+    renderWorkspace();
+  }
 }
 
 $("parentModeBtn").onclick = () => {
@@ -1161,6 +1546,38 @@ function renderRotationMembers(selectedIds = []) {
     </label>
   `).join("");
 }
+function renderSharedParticipants(selectedIds = []) {
+  const list = $("sharedParticipantsList");
+  if (!list) return;
+
+  list.innerHTML = members.map(member => `
+    <label class="rotation-member">
+      <input
+        type="checkbox"
+        value="${member.id}"
+        ${selectedIds.includes(member.id) ? "checked" : ""}
+      >
+      ${member.emoji || "👤"} ${member.name}
+    </label>
+  `).join("");
+}
+function updateAssignmentControls() {
+  const rotationEnabled =
+    $("detailsRotationEnabled").checked;
+
+  const fixedSharedSection =
+    $("fixedSharedSection");
+
+  if (fixedSharedSection) {
+    fixedSharedSection.classList.toggle(
+      "hidden",
+      rotationEnabled
+    );
+  }
+}
+$("detailsRotationEnabled").onchange = () => {
+  updateAssignmentControls();
+};
 function updateParentDashboard() {
   if (!$("parentIncompleteCount")) return;
   const today = new Date().toISOString().split("T")[0];
@@ -1416,11 +1833,34 @@ function renderPendingTasksForSelectedMember() {
   }
 
   const allTasks = nodes
-    .filter(node =>
-      node.memberId === memberId &&
-      node.type === "task" &&
-      !node.done
-    )
+    .filter(node => {
+
+  let belongsToMember;
+
+  if (node.rotationEnabled && node.sharedEnabled) {
+
+    belongsToMember =
+      effectiveParticipantIds(node).includes(memberId);
+
+  } else if (node.sharedEnabled) {
+
+    belongsToMember =
+      effectiveParticipantIds(node).includes(memberId);
+
+  } else {
+
+    belongsToMember =
+      node.memberId === memberId;
+
+  }
+
+  return (
+    belongsToMember &&
+    node.type === "task" &&
+    !node.done
+  );
+
+})
     .sort((a, b) => {
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;

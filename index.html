@@ -4,10 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Family Hub v2</title>
-  <link rel="stylesheet" href="style.css?v=6">
-</head>
+  <link rel="stylesheet" href="style.css?v=8">
 <body>
-  <header class="app-header">
+  <header class="app-header"></header>
     <div>
       <h1>Family Hub v2</h1>
       <p id="syncStatus">Starting…</p>
@@ -263,6 +262,22 @@
 </label>
 
 <div id="rotationMembersList" class="rotation-members-list"></div>
+<label>
+  Number of people assigned each time
+  <input
+    id="detailsParticipantsPerOccurrence"
+    type="number"
+    min="1"
+    value="1">
+<div id="fixedSharedSection">
+  <label class="rotation-main-toggle">
+    <input id="detailsSharedEnabled" type="checkbox">
+    Shared task — everyone selected must complete it
+  </label>
+
+  <div id="sharedParticipantsList" class="rotation-members-list"></div>
+</div>
+
 <label>
   Title
   <input id="detailsTitle">
