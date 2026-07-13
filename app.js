@@ -196,7 +196,12 @@ ${
     ${node.done ? "checked disabled" : ""}>
   <span>Complete</span>
   </label>
-
+  <button
+  type="button"
+  class="ghost"
+  data-swap-node="${node.id}">
+  ⇄ Swap
+</button>
   <button
     class="danger"
     data-delete-node="${node.id}">
@@ -242,6 +247,19 @@ document.querySelectorAll("[data-complete-node]").forEach(checkbox => {
     if (!node) return;
 
     await completeNodeFromList(node);
+  };
+});
+document.querySelectorAll("[data-swap-node]").forEach(button => {
+  button.onclick = async event => {
+    event.stopPropagation();
+
+    const node = nodes.find(
+      item => item.id === button.dataset.swapNode
+    );
+
+    if (!node) return;
+
+    await swapTaskOwner(node);
   };
 });
   document.querySelectorAll("[data-delete-node]").forEach(button => {
@@ -604,12 +622,15 @@ async function completeTask(node, options = {}) {
         node.rotationMembers &&
         node.rotationMembers.length > 1
       ) {
-        const currentIndex = node.rotationMembers.indexOf(node.memberId);
+        const scheduledIndex =
+  Number.isInteger(node.rotationIndex)
+    ? node.rotationIndex
+    : node.rotationMembers.indexOf(node.memberId);
 
-        newRotationIndex =
-          currentIndex >= 0
-            ? (currentIndex + 1) % node.rotationMembers.length
-            : 0;
+newRotationIndex =
+  scheduledIndex >= 0
+    ? (scheduledIndex + 1) % node.rotationMembers.length
+    : 0;
 
         newMemberId = node.rotationMembers[newRotationIndex];
       }
@@ -630,6 +651,65 @@ $("detailsPanel").classList.add("hidden");
 async function completeNodeFromList(node) {
   await completeTask(node, {
     source: "workspace"
+  });
+}
+async function swapTaskOwner(node) {
+  if (!node) return;
+
+  const availableMembers = members.filter(member =>
+    member.id !== node.memberId
+  );
+
+  if (!availableMembers.length) {
+    alert("There is nobody else available to take this task.");
+    return;
+  }
+
+  const choices = availableMembers
+    .map((member, index) =>
+      `${index + 1}. ${member.emoji || "👤"} ${member.name}`
+    )
+    .join("\n");
+
+  const answer = prompt(
+    `Swap "${node.title}" to:\n\n${choices}\n\nEnter a number:`
+  );
+
+  if (!answer) return;
+
+  const selectedIndex = Number(answer) - 1;
+  const newOwner = availableMembers[selectedIndex];
+
+  if (!newOwner) {
+    alert("Please enter a valid number.");
+    return;
+  }
+
+  const oldOwner = members.find(member => member.id === node.memberId);
+
+  const confirmed = confirm(
+    `Swap "${node.title}" from ${
+      oldOwner?.name || "current owner"
+    } to ${newOwner.name}?`
+  );
+
+  if (!confirmed) return;
+
+  await updateNode(node.id, {
+    memberId: newOwner.id,
+    swappedFromMemberId: node.memberId,
+    swappedAt: new Date().toISOString()
+  });
+
+  await addActivity({
+    title: `Swapped: ${node.title}`,
+    memberId: newOwner.id,
+    previousMemberId: node.memberId,
+    completedAt: new Date().toISOString(),
+    originalType: "swap",
+    recurring: node.repeat && node.repeat !== "none",
+    repeat: node.repeat || "none",
+    dueDate: node.dueDate || ""
   });
 }
 function occursOnDate(item, dateString) {
