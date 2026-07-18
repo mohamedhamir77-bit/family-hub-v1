@@ -1,6 +1,8 @@
 import {
   addPointsTransaction,
-  watchPoints
+  watchPoints,
+  deletePointsTransaction,
+  hidePointsTransaction
 } from "./points.js";
 import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode, updateNode } from "./nodes.js";
@@ -736,6 +738,12 @@ list.innerHTML = members.map(member => {
     ) + 1;
 
   const totalPoints = totals[member.id] || 0;
+  const visibleAdjustments = pointTransactions
+  .filter(transaction =>
+    transaction.memberId === member.id &&
+    transaction.displayOnMemberCard === true
+  )
+  .slice(0, 3);
 
   return `
     <div class="card member-card" data-member-id="${member.id}">
@@ -753,6 +761,41 @@ list.innerHTML = members.map(member => {
     ⭐ ${totalPoints} points
   </span>
 </div>
+${
+  visibleAdjustments.length
+    ? `
+      <div class="member-activity">
+        ${visibleAdjustments.map(transaction => `
+          <div class="member-activity-item">
+  <span>
+    ${transaction.amount > 0 ? "+" : "-"}${Math.abs(transaction.amount)} ⭐
+    ${transaction.reason}
+  </span>
+
+  ${
+    parentMode
+      ? `
+        ${
+  parentMode && transaction.displayOnMemberCard !== false
+    ? `
+      <button
+        type="button"
+        class="member-activity-delete"
+        data-hide-adjustment="${transaction.id}">
+        ×
+      </button>
+    `
+    : ""
+}
+      `
+      : ""
+  }
+</div>
+        `).join("")}
+      </div>
+    `
+    : ""
+}
         </div>
       </div>
       <button class="danger" data-delete="${member.id}">Delete</button>
@@ -795,7 +838,21 @@ renderPrayerTracker();
   }
 };
   });
+document
+  .querySelectorAll("[data-hide-adjustment]")
+  .forEach(button => {
+    button.onclick = async event => {
+      event.stopPropagation();
+
+      if (!confirm("Remove this message?")) return;
+
+      await hidePointsTransaction(
+        button.dataset.hideAdjustment
+      );
+    };
+  });
 }
+
 
 function renderWorkspace() {
   const member = currentMember();
@@ -1350,7 +1407,8 @@ $("savePointsAdjustmentBtn").onclick = async () => {
 
   const memberId = $("pointsAdjustmentMember").value;
   const amount = Number($("pointsAdjustmentAmount").value);
-
+const reason =
+  $("pointsAdjustmentReason").value.trim();
   if (!memberId) {
     alert("Please select a member.");
     return;
@@ -1361,18 +1419,26 @@ $("savePointsAdjustmentBtn").onclick = async () => {
     return;
   }
 
- await addPointsTransaction({
+await addPointsTransaction({
   memberId,
   amount,
-  type: amount > 0 ? "manual-addition" : "manual-deduction",
-  title: amount > 0 ? "Manual points added" : "Manual points deducted",
+  type: amount > 0
+    ? "manual-addition"
+    : "manual-deduction",
+  title: reason || (
+    amount > 0
+      ? "Manual points added"
+      : "Manual points deducted"
+  ),
+  reason,
+  displayOnMemberCard: reason.length > 0,
   adjustedByParent: true
 });
+$("pointsAdjustmentAmount").value = "";
+$("pointsAdjustmentReason").value = "";
+$("pointsAdjustmentMember").value = "";
 
-  $("pointsAdjustmentAmount").value = "";
-
-
-  alert("Points updated successfully.");
+alert("Points updated.");
 };
 function dashboardItems(filter) {
   const today = new Date().toISOString().split("T")[0];
@@ -2239,6 +2305,7 @@ function updateParentModeButton() {
   if (selectedMemberId) {
     renderWorkspace();
   }
+  renderMembers();
 }
 
 $("parentModeBtn").onclick = () => {

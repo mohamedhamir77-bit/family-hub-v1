@@ -1308,3 +1308,13 @@ textarea {
 .prayer-location-result span {
   color: var(--muted);
 }
+.member-activity {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.member-activity-item {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}

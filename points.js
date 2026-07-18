@@ -6,7 +6,8 @@ import {
   onSnapshot,
   where,
   deleteDoc,
-  doc
+doc,
+updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import { db } from "./firebase.js";
@@ -55,4 +56,12 @@ export function watchMemberPoints(memberId, callback) {
 
 export async function deletePointsTransaction(id) {
   return deleteDoc(doc(db, "points", id));
+}
+export async function hidePointsTransaction(id) {
+  return updateDoc(
+    doc(db, "points", id),
+    {
+      displayOnMemberCard: false
+    }
+  );
 }
