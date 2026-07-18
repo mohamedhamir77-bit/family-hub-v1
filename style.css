@@ -1311,10 +1311,57 @@ textarea {
 .member-activity {
   margin-top: 8px;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .member-activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+
   font-size: 0.85rem;
-  opacity: 0.8;
+  opacity: 0.9;
+}
+
+.member-activity-item span {
+  flex: 1;
+  word-break: break-word;
+}
+
+.member-activity-delete {
+  background: transparent;
+  color: #dc2626;
+  border: none;
+
+  width: 36px;
+  height: 36px;
+
+  min-width: 36px;
+  min-height: 36px;
+
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.member-activity-delete:hover {
+  background: #fee2e2;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .member-activity-delete {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+  }
 }

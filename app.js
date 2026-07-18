@@ -25,6 +25,7 @@ let parentMode = false;
 let activities = [];
 let pointTransactions = [];
 let prayerTimes = {};
+let appVersion = "";
 const parentPin = "1234";
 function pointsFromCurrentMonth() {
   const now = new Date();
@@ -350,6 +351,62 @@ async function loadPrayerTimes() {
       `Prayer times unavailable: ${error.message}`;
   }
 }
+async function checkForNewVersion() {
+  try {
+    const response = await fetch(
+      `version.json?t=${Date.now()}`,
+      { cache: "no-store" }
+    );
+
+    const data = await response.json();
+
+    const latestVersion = data.version;
+
+
+
+    const storedVersion =
+      localStorage.getItem("familyHubVersion");
+
+    if (!storedVersion) {
+      localStorage.setItem(
+        "familyHubVersion",
+        latestVersion
+      );
+      appVersion = latestVersion;
+      return;
+    }
+
+    if (storedVersion !== latestVersion) {
+      const updateNow = confirm(
+        `🚀 Family Hub ${latestVersion} is available.\n\nReload now to update?`
+      );
+
+      if (updateNow) {
+        localStorage.setItem(
+          "familyHubVersion",
+          latestVersion
+        );
+
+        const cleanUrl =
+  `${window.location.origin}${window.location.pathname}`;
+
+window.location.replace(
+  `${cleanUrl}?update=${Date.now()}`
+);
+      }
+    }
+
+    appVersion = latestVersion;
+
+  } catch (error) {
+    console.error("Version check failed", error);
+  }
+}
+
+checkForNewVersion();
+
+// Check again every 5 minutes
+setInterval(checkForNewVersion, 5 * 60 * 1000);
 loadPrayerTimes();
 const prayerLocationDialog =
   $("prayerLocationDialog");
@@ -753,11 +810,11 @@ list.innerHTML = members.map(member => {
     ) + 1;
 
   const totalPoints = totals[member.id] || 0;
-  const visibleAdjustments = pointTransactions
+  const visibleAdjustments = pointsFromCurrentMonth()
   .filter(transaction =>
-    transaction.memberId === member.id &&
-    transaction.displayOnMemberCard === true
-  )
+  transaction.memberId === member.id &&
+  transaction.displayOnMemberCard !== false
+)
   .slice(0, 3);
 
   return `
@@ -1180,7 +1237,7 @@ $("addItemBtn").onclick = async () => {
   title: result.title,
   type: result.type,
   notes: "",
-  points: result.type === "task" ? 1 : 0,
+  points: 0,
   endDate: "",
   sharedEnabled: false,
   participantIds: [],
@@ -1448,6 +1505,32 @@ $("familyEconomyCard").onclick = () => {
 
     summary += `${member.emoji || "👤"} *${member.name}*\n`;
     summary += `⭐ ${totals[member.id] || 0} points\n`;
+    const manualAdjustments = pointsFromCurrentMonth()
+  .filter(transaction =>
+    transaction.memberId === member.id &&
+transaction.displayOnMemberCard !== false &&
+    (
+      transaction.adjustedByParent === true ||
+      transaction.type === "manual-addition" ||
+      transaction.type === "manual-deduction"
+    )
+  )
+  .slice(0, 5);
+  console.log("POINTS", pointsFromCurrentMonth());
+
+if (manualAdjustments.length) {
+  summary += `📝 Manual point changes:\n`;
+
+  manualAdjustments.forEach(transaction => {
+    const amount = Number(transaction.amount) || 0;
+    const reason =
+      transaction.reason?.trim() ||
+      transaction.title ||
+      "No reason given";
+
+    summary += `   ${amount > 0 ? "+" : ""}${amount} ⭐ — ${reason}\n`;
+  });
+}
 
     if (!memberItems.length) {
       summary += `🎉 No tasks today\n\n`;
@@ -1484,6 +1567,8 @@ $("familyEconomyCard").onclick = () => {
   summary += `📊 *FAMILY TOTAL*\n`;
   summary += `⭐ ${familyTotal} points\n`;
   summary += `📌 ${todaysItems.length} items today`;
+  summary += `\n\n🌐 *Open Family Hub:*\n`;
+summary += `https://family-hub-9b455.web.app/`;
 
   await navigator.clipboard.writeText(summary);
 
@@ -1491,6 +1576,19 @@ $("familyEconomyCard").onclick = () => {
 };
   }
 };
+
+const minusBtn = document.getElementById("pointsMinusBtn");
+const plusBtn = document.getElementById("pointsPlusBtn");
+const amountBox = document.getElementById("pointsAdjustmentAmount");
+
+
+if (minusBtn) {
+  minusBtn.onclick = () => amountBox.stepDown();
+}
+
+if (plusBtn) {
+  plusBtn.onclick = () => amountBox.stepUp();
+}
 $("savePointsAdjustmentBtn").onclick = async () => {
 
   if (!parentMode) {
@@ -2626,53 +2724,9 @@ function renderFamilyEconomy() {
   `;
 
   const recentTransactions =
-    pointTransactions.slice(0, 10);
+  pointsFromCurrentMonth().slice(0, 10);
 
-  ledger.innerHTML = `
-    <h3>📜 Recent Transactions</h3>
-
-    ${
-      recentTransactions.length
-        ? recentTransactions.map(transaction => {
-            const member = members.find(
-              item => item.id === transaction.memberId
-            );
-
-            const amount =
-              Number(transaction.amount) || 0;
-
-            return `
-              <div class="card dashboard-result-card">
-                <strong>
-                  ${amount >= 0 ? "+" : ""}
-                  ${amount} ⭐
-                  ${transaction.title || "Points transaction"}
-                </strong>
-
-                <div class="meta-row">
-                  <span class="badge">
-                    ${member?.emoji || "👤"}
-                    ${member?.name || "Unknown"}
-                  </span>
-
-                  ${
-                    transaction.createdAt
-                      ? `
-                        <span class="badge">
-                          🕒 ${new Date(
-                            transaction.createdAt
-                          ).toLocaleString()}
-                        </span>
-                      `
-                      : ""
-                  }
-                </div>
-              </div>
-            `;
-          }).join("")
-        : "<p>No transactions yet.</p>"
-    }
-  `;
+  ledger.innerHTML = "";
 }
 function updateParentActivity() {
   const activityList = $("parentActivityList");

@@ -298,7 +298,26 @@
 
   <label>
     Points
-    <input id="pointsAdjustmentAmount" type="number">
+    <div class="points-stepper">
+  <button
+    type="button"
+    id="pointsMinusBtn"
+    class="stepper-btn">
+    −
+  </button>
+
+  <input
+    id="pointsAdjustmentAmount"
+    type="number"
+    value="1">
+
+  <button
+    type="button"
+    id="pointsPlusBtn"
+    class="stepper-btn">
+    +
+  </button>
+</div>
     <label>
   Reason (optional)
   <input
@@ -428,22 +447,27 @@
 <label>
   Priority
   <select id="detailsPriority">
-    <label for="detailsPoints">Points for completing this task</label>
-<input
-  id="detailsPoints"
-  type="number"
-  min="0"
-  max="100"
-  step="1"
-  value="1"
->
-<small>Completed on time: gain these points. Missed: lose 1 point.</small>
     <option value="">None</option>
     <option value="low">🟢 Low</option>
     <option value="medium">🟡 Medium</option>
     <option value="high">🔴 High</option>
   </select>
 </label>
+<label>
+  Points for completing this task
+  <input
+    id="detailsPoints"
+    type="number"
+    min="0"
+    max="100"
+    step="1"
+    value="0">
+</label>
+
+<small>
+  Completed on time: gain these points. Missed: lose 1 point.
+</small>
+
 <label>
   Repeat
   <select id="detailsRepeat">
