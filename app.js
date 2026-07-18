@@ -1,3 +1,7 @@
+import {
+  addPointsTransaction,
+  watchPoints
+} from "./points.js";
 import { watchMembers, addMember, deleteMember } from "./members.js";
 import { watchNodes, addNode, deleteNode, updateNode } from "./nodes.js";
 import { addActivity, watchActivity, deleteActivity } from "./activity.js";
@@ -17,6 +21,8 @@ let selectedDashboardFilter = null;
 let calendarDate = new Date();
 let parentMode = false;
 let activities = [];
+let pointTransactions = [];
+let prayerTimes = {};
 const parentPin = "1234";
 
 function updateDashboard() {
@@ -90,17 +96,23 @@ function renderPrayerTracker() {
     checkbox.disabled = false;
     checkbox.checked = savedPrayers[prayer] === true;
 
-    checkbox.onchange = () => {
-      savedPrayers[prayer] = checkbox.checked;
+    checkbox.onchange = async () => {
 
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify(savedPrayers)
-      );
+  const wasChecked = savedPrayers[prayer];
 
-      updatePrayerProgress();
-    };
-  });
+  savedPrayers[prayer] = checkbox.checked;
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify(savedPrayers)
+  );
+
+  if (!wasChecked && checkbox.checked) {
+    await awardPrayerPoints(prayer);
+  }
+
+  updatePrayerProgress();
+};
 
  function updatePrayerProgress() {
   const completed = Array.from(checkboxes).filter(
@@ -111,9 +123,65 @@ function renderPrayerTracker() {
     `${completed} of 5 completed`;
 }
 
-    updatePrayerProgress();
+updatePrayerProgress();
+});
+
+function updatePrayerProgress() {
+  const completed = Array.from(checkboxes).filter(
+    checkbox => checkbox.checked
+  ).length;
+
+  progressText.textContent =
+    `${completed} of 5 completed`;
 }
 
+updatePrayerProgress();
+
+}
+
+async function awardPrayerPoints(prayer) {
+  if (!prayerTimes[prayer]) return;
+
+  const memberId = selectedMemberId;
+  if (!memberId) return;
+
+  const today = formatDateLocal(new Date());
+
+  // Prevent duplicate points for the same prayer
+  const alreadyAwarded = pointTransactions.some(t =>
+    t.type === "prayer-on-time" &&
+    t.memberId === memberId &&
+    t.title === prayer &&
+    t.occurrenceDate === today
+  );
+
+  if (alreadyAwarded) return;
+
+  const [hour, minute] = prayerTimes[prayer]
+    .split(":")
+    .map(Number);
+
+  const prayerTime = new Date();
+  prayerTime.setHours(hour, minute, 0, 0);
+
+  const now = new Date();
+
+  const diffMinutes =
+    (now - prayerTime) / 60000;
+
+  if (diffMinutes >= 0 && diffMinutes <= 60) {
+
+    await addPointsTransaction({
+      memberId,
+      amount: 2,
+      type: "prayer-on-time",
+      title: prayer,
+      occurrenceDate: today
+    });
+
+  }
+
+}
 async function loadPrayerTimes() {
   console.log("Loading prayer times...");
 
@@ -148,7 +216,7 @@ async function loadPrayerTimes() {
 
     const timings = result.data.timings;
 
-    const prayerTimes = {
+    prayerTimes = {
       fajr: timings.Fajr,
       dhuhr: timings.Dhuhr,
       asr: timings.Asr,
@@ -645,18 +713,52 @@ function renderMembers() {
     return;
   }
 
-  list.innerHTML = members.map(member => `
+  const totals = {};
+
+pointTransactions.forEach(transaction => {
+  const amount = Number(transaction.amount) || 0;
+
+  totals[transaction.memberId] =
+    (totals[transaction.memberId] || 0) + amount;
+});
+
+const rankedMembers = [...members]
+  .map(member => ({
+    ...member,
+    totalPoints: totals[member.id] || 0
+  }))
+  .sort((a, b) => b.totalPoints - a.totalPoints);
+
+list.innerHTML = members.map(member => {
+  const position =
+    rankedMembers.findIndex(
+      rankedMember => rankedMember.id === member.id
+    ) + 1;
+
+  const totalPoints = totals[member.id] || 0;
+
+  return `
     <div class="card member-card" data-member-id="${member.id}">
       <div class="member-info">
         <span class="avatar">${member.emoji || "👤"}</span>
         <div>
           <strong>${member.name}</strong>
           <small>${member.role || "member"}</small>
+          <div class="meta-row">
+  <span class="badge">
+    🏆 Position ${position}
+  </span>
+
+  <span class="badge">
+    ⭐ ${totalPoints} points
+  </span>
+</div>
         </div>
       </div>
       <button class="danger" data-delete="${member.id}">Delete</button>
     </div>
-  `).join("");
+  `;
+}).join("");
 
   document.querySelectorAll(".member-card").forEach(card => {
     card.onclick = event => {
@@ -760,6 +862,13 @@ ${
   ${node.done ? `<span class="badge done">✅ Done</span>` : ""}
   ${node.dueDate ? `<span class="badge date">📅 ${node.dueDate}</span>` : ""}
   ${node.priority ? `<span class="badge priority-${node.priority}">${node.priority}</span>` : ""}
+  ${
+  node.type === "task"
+    ? `<span class="badge">⭐ ${node.points ?? 1} points</span>`
+    : ""
+}
+  ${node.dueDate ? `<span class="badge date">📅 ${node.dueDate}</span>` : ""}
+${node.priority ? `<span class="badge priority-${node.priority}">${node.priority}</span>` : ""}
   ${
   node.sharedEnabled
     ? (() => {
@@ -888,6 +997,7 @@ document.querySelectorAll("[data-node-id]").forEach(card => {
     $("detailsDueDate").value = selectedNode.dueDate || "";
     $("detailsEndDate").value = selectedNode.endDate || "";
     $("detailsPriority").value = selectedNode.priority || "";
+    $("detailsPoints").value = selectedNode.points ?? 1;
     $("detailsRepeat").value = selectedNode.repeat || "none";
     $("detailsRepeatUntil").value = selectedNode.repeatUntil || "";
 
@@ -998,6 +1108,7 @@ $("addItemBtn").onclick = async () => {
   title: result.title,
   type: result.type,
   notes: "",
+  points: result.type === "task" ? 1 : 0,
   endDate: "",
   sharedEnabled: false,
   participantIds: [],
@@ -1084,6 +1195,7 @@ if (wasJustCompleted) {
     endDate: $("detailsEndDate").value,
     notes: $("detailsNotes").value.trim(),
     priority: $("detailsPriority").value,
+    points: Math.max(0, Number($("detailsPoints").value) || 0),
     repeat: $("detailsRepeat").value,
     repeatUntil: $("detailsRepeatUntil").value,
     rotationEnabled: rotationEnabled,
@@ -1122,6 +1234,7 @@ await updateNode(selectedNode.id, {
   dueDate: newDueDate,
   endDate: $("detailsEndDate").value,
   priority: $("detailsPriority").value,
+  points: Math.max(0, Number($("detailsPoints").value) || 0),
   repeat: $("detailsRepeat").value,
   repeatUntil: $("detailsRepeatUntil").value,
   rotationEnabled: rotationEnabled,
@@ -1173,37 +1286,94 @@ watchMembers(newMembers => {
   members = newMembers;
   renderMembers();
   renderPendingMemberDropdown();
+  renderPointsAdjustmentMembers();
+  renderFamilyEconomy();
   $("syncStatus").textContent = "Online • synced";
 });
 
 watchNodes(newNodes => {
   nodes = newNodes;
+
   if (
-  selectedNode &&
-  !nodes.some(node => node.id === selectedNode.id)
-) {
-  selectedNode = null;
-  $("detailsPanel").classList.add("hidden");
-}
+    selectedNode &&
+    !nodes.some(node => node.id === selectedNode.id)
+  ) {
+    selectedNode = null;
+    $("detailsPanel").classList.add("hidden");
+  }
 
-updateDashboard();
-renderCalendar();
-updateGreeting();
-updateTodaySummary();
-renderPrayerTracker();
-updateParentDashboard();
-updateParentActivity();
-renderPendingMemberDropdown();
-renderPendingTasksForSelectedMember();
-runGlobalSearch();
+  updateDashboard();
+  renderCalendar();
+  updateGreeting();
+  updateTodaySummary();
+  renderPrayerTracker();
+  updateParentDashboard();
+  updateParentActivity();
+  renderPendingMemberDropdown();
+  renderPendingTasksForSelectedMember();
+  runGlobalSearch();
 
-if (selectedMemberId) renderWorkspace();
+  if (selectedMemberId) {
+    renderWorkspace();
+  }
+
   $("syncStatus").textContent = "Online • synced";
 });
 watchActivity(newActivities => {
   activities = newActivities;
   updateParentActivity();
 });
+watchPoints(newTransactions => {
+  pointTransactions = newTransactions;
+  renderFamilyEconomy();
+  renderMembers();
+});
+$("familyEconomyCard").onclick = () => {
+  const panel = $("familyEconomyPanel");
+
+  panel.classList.toggle("hidden");
+
+  if (!panel.classList.contains("hidden")) {
+    renderFamilyEconomy();
+
+    panel.scrollIntoView({
+      behavior: "smooth"
+    });
+  }
+};
+$("savePointsAdjustmentBtn").onclick = async () => {
+
+  if (!parentMode) {
+    alert("Only a parent can adjust points.");
+    return;
+  }
+
+  const memberId = $("pointsAdjustmentMember").value;
+  const amount = Number($("pointsAdjustmentAmount").value);
+
+  if (!memberId) {
+    alert("Please select a member.");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount === 0) {
+    alert("Enter a positive or negative number.");
+    return;
+  }
+
+ await addPointsTransaction({
+  memberId,
+  amount,
+  type: amount > 0 ? "manual-addition" : "manual-deduction",
+  title: amount > 0 ? "Manual points added" : "Manual points deducted",
+  adjustedByParent: true
+});
+
+  $("pointsAdjustmentAmount").value = "";
+
+
+  alert("Points updated successfully.");
+};
 function dashboardItems(filter) {
   const today = new Date().toISOString().split("T")[0];
 
@@ -1302,6 +1472,7 @@ function showDashboardResults(filter) {
     $("detailsEndDate").value = item.endDate || "";
     $("detailsPriority").value = item.priority || "";
     $("detailsRepeat").value = item.repeat || "none";
+    $("detailsPoints").value = item.points ?? 1;
     $("detailsRepeatUntil").value = item.repeatUntil || "";
     $("detailsRotationEnabled").checked =
   item.rotationEnabled === true;
@@ -1351,9 +1522,21 @@ async function completeTask(node, options = {}) {
     memberId: node.memberId,
     completedAt,
     originalType: node.type,
-    recurring: node.repeat ? node.repeat !== "none" : false,
+    recurring: node.repeat
+      ? node.repeat !== "none"
+      : false,
     repeat: node.repeat || "none",
     dueDate: node.dueDate || ""
+  });
+
+  await addPointsTransaction({
+    memberId: node.memberId,
+    amount: node.points ?? 1,
+    type: "task-completed",
+    title: node.title,
+    taskId: node.id,
+    occurrenceDate:
+      node.dueDate || formatDateLocal(new Date())
   });
 
   let newDueDate = node.dueDate || "";
@@ -1827,6 +2010,7 @@ function showCalendarDay(dateString) {
       $("detailsEndDate").value = item.endDate || "";
       $("detailsPriority").value = item.priority || "";
       $("detailsRepeat").value = item.repeat || "none";
+      $("detailsPoints").value = item.points ?? 1;
       $("detailsRepeatUntil").value = item.repeatUntil || "";
       $("detailsRotationEnabled").checked = item.rotationEnabled === true;
 
@@ -2024,6 +2208,7 @@ function runGlobalSearch() {
     $("detailsEndDate").value = item.endDate || "";
     $("detailsPriority").value = item.priority || "";
     $("detailsRepeat").value = item.repeat || "none";
+    $("detailsPoints").value = item.points ?? 1;
     $("detailsRepeatUntil").value = item.repeatUntil || "";
     $("detailsRotationEnabled").checked =
   item.rotationEnabled === true;
@@ -2198,6 +2383,130 @@ $("parentCompletedCard").onclick = () => {
 
   list.classList.toggle("hidden");
 };
+function renderPointsAdjustmentMembers() {
+  const select = $("pointsAdjustmentMember");
+  if (!select) return;
+
+  const currentValue = select.value;
+
+  select.innerHTML = `
+    <option value="">Select member</option>
+
+    ${members.map(member => `
+      <option value="${member.id}">
+        ${member.emoji || "👤"} ${member.name}
+      </option>
+    `).join("")}
+  `;
+
+  if (currentValue) {
+    select.value = currentValue;
+  }
+}
+function renderFamilyEconomy() {
+  const leaderboard = $("pointsLeaderboard");
+  const ledger = $("pointsLedger");
+
+  if (!leaderboard || !ledger) return;
+
+  const totals = {};
+
+  pointTransactions.forEach(transaction => {
+    const amount = Number(transaction.amount) || 0;
+
+    totals[transaction.memberId] =
+      (totals[transaction.memberId] || 0) + amount;
+  });
+
+  const rankedMembers = members
+    .map(member => ({
+      ...member,
+      totalPoints: totals[member.id] || 0
+    }))
+    .sort((a, b) => b.totalPoints - a.totalPoints);
+
+  leaderboard.innerHTML = `
+    <h3>🏆 Leaderboard</h3>
+
+    ${
+      rankedMembers.length
+        ? rankedMembers.map((member, index) => {
+            const position =
+              index === 0
+                ? "🥇"
+                : index === 1
+                ? "🥈"
+                : index === 2
+                ? "🥉"
+                : `${index + 1}.`;
+
+            return `
+              <div class="card dashboard-result-card">
+                <strong>
+                  ${position}
+                  ${member.emoji || "👤"}
+                  ${member.name}
+                </strong>
+
+                <span class="badge">
+                  ⭐ ${member.totalPoints} points
+                </span>
+              </div>
+            `;
+          }).join("")
+        : "<p>No family members found.</p>"
+    }
+  `;
+
+  const recentTransactions =
+    pointTransactions.slice(0, 10);
+
+  ledger.innerHTML = `
+    <h3>📜 Recent Transactions</h3>
+
+    ${
+      recentTransactions.length
+        ? recentTransactions.map(transaction => {
+            const member = members.find(
+              item => item.id === transaction.memberId
+            );
+
+            const amount =
+              Number(transaction.amount) || 0;
+
+            return `
+              <div class="card dashboard-result-card">
+                <strong>
+                  ${amount >= 0 ? "+" : ""}
+                  ${amount} ⭐
+                  ${transaction.title || "Points transaction"}
+                </strong>
+
+                <div class="meta-row">
+                  <span class="badge">
+                    ${member?.emoji || "👤"}
+                    ${member?.name || "Unknown"}
+                  </span>
+
+                  ${
+                    transaction.createdAt
+                      ? `
+                        <span class="badge">
+                          🕒 ${new Date(
+                            transaction.createdAt
+                          ).toLocaleString()}
+                        </span>
+                      `
+                      : ""
+                  }
+                </div>
+              </div>
+            `;
+          }).join("")
+        : "<p>No transactions yet.</p>"
+    }
+  `;
+}
 function updateParentActivity() {
   const activityList = $("parentActivityList");
   if (!activityList) return;

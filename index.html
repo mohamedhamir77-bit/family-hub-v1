@@ -268,6 +268,49 @@
     <h3>🔄 Rotating</h3>
     <p id="parentRotatingCount">0</p>
     </div>
+    <div
+  class="dashboard-card"
+  id="familyEconomyCard"
+>
+  <h3>⭐ Family Economy</h3>
+  <p>View points and recent rewards</p>
+</div>
+<div
+  id="familyEconomyPanel"
+  class="hidden"
+>
+  <h3>⭐ Family Economy</h3>
+  <div class="card">
+
+  <h3>➕➖ Adjust Points</h3>
+
+  <label>
+    Member
+    <select id="pointsAdjustmentMember"></select>
+  </label>
+
+  <label>
+    Points
+    <input id="pointsAdjustmentAmount" type="number">
+  </label>
+
+
+
+  <button id="savePointsAdjustmentBtn">
+    Save
+  </button>
+
+</div>
+
+  <div id="pointsLeaderboard">
+    <p>No points recorded yet.</p>
+  </div>
+
+  <div id="pointsLedger">
+    <h3>📜 Recent Transactions</h3>
+    <p>No transactions yet.</p>
+  </div>
+</div>
 
   </div>
 
@@ -370,6 +413,16 @@
 <label>
   Priority
   <select id="detailsPriority">
+    <label for="detailsPoints">Points for completing this task</label>
+<input
+  id="detailsPoints"
+  type="number"
+  min="0"
+  max="100"
+  step="1"
+  value="1"
+>
+<small>Completed on time: gain these points. Missed: lose 1 point.</small>
     <option value="">None</option>
     <option value="low">🟢 Low</option>
     <option value="medium">🟡 Medium</option>
