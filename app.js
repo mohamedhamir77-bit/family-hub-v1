@@ -56,6 +56,63 @@ function updateDashboard() {
 function currentMember() {
   return members.find(member => member.id === selectedMemberId);
 }
+function renderPrayerTracker() {
+  const member = currentMember();
+  const memberText = $("prayerMemberText");
+  const progressText = $("prayerProgressText");
+  const checkboxes = document.querySelectorAll("[data-prayer]");
+
+  if (!member) {
+    memberText.textContent = "Select a family member";
+
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      checkbox.disabled = true;
+    });
+
+    progressText.textContent = "0 of 5 completed";
+    return;
+  }
+
+  memberText.textContent =
+    `${member.emoji || "👤"} ${member.name}`;
+
+  const today = formatDateLocal(new Date());
+  const storageKey = `prayers-${member.id}-${today}`;
+
+  const savedPrayers = JSON.parse(
+    localStorage.getItem(storageKey) || "{}"
+  );
+
+  checkboxes.forEach(checkbox => {
+    const prayer = checkbox.dataset.prayer;
+
+    checkbox.disabled = false;
+    checkbox.checked = savedPrayers[prayer] === true;
+
+    checkbox.onchange = () => {
+      savedPrayers[prayer] = checkbox.checked;
+
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(savedPrayers)
+      );
+
+      updatePrayerProgress();
+    };
+  });
+
+  function updatePrayerProgress() {
+    const completed = Array.from(checkboxes).filter(
+      checkbox => checkbox.checked
+    ).length;
+
+    progressText.textContent =
+      `${completed} of 5 completed`;
+  }
+
+  updatePrayerProgress();
+}
 function sharedProgress(node) {
   const participants = effectiveParticipantIds(node);
 
@@ -84,6 +141,22 @@ function rotatingParticipantIds(node) {
   const pool = Array.isArray(node.rotationMembers)
     ? node.rotationMembers
     : [];
+    const today = formatDateLocal(new Date());
+
+if (
+  Array.isArray(node.nextActiveParticipantIds) &&
+  node.nextActiveParticipantIds.length &&
+  node.dueDate &&
+  node.dueDate <= today
+) {
+  return node.nextActiveParticipantIds;
+}
+      if (
+    Array.isArray(node.activeParticipantIds) &&
+    node.activeParticipantIds.length
+  ) {
+    return node.activeParticipantIds;
+  }
 
   if (!node.rotationEnabled || !pool.length) {
     return sharedParticipantIds(node);
@@ -105,6 +178,54 @@ function rotatingParticipantIds(node) {
     const index = (startIndex + offset) % pool.length;
     return pool[index];
   });
+}
+function nextRotatingParticipantIds(node, completedBy) {
+  const pool = Array.isArray(node.rotationMembers)
+    ? node.rotationMembers
+    : [];
+
+  const currentParticipants =
+    rotatingParticipantIds(node);
+
+  const incompleteParticipants =
+    currentParticipants.filter(memberId => {
+      const effectiveId =
+        node.temporarySwaps?.[memberId] || memberId;
+
+      return completedBy?.[effectiveId] !== true;
+    });
+
+  const requiredCount =
+    Math.min(
+      Number(node.participantsPerOccurrence) || 1,
+      pool.length
+    );
+
+  const nextParticipants = [
+    ...incompleteParticipants
+  ];
+
+  const lastCurrentParticipant =
+    currentParticipants[currentParticipants.length - 1];
+
+  let nextIndex =
+    pool.indexOf(lastCurrentParticipant) + 1;
+
+  while (
+    nextParticipants.length < requiredCount &&
+    pool.length
+  ) {
+    const candidate =
+      pool[nextIndex % pool.length];
+
+    if (!nextParticipants.includes(candidate)) {
+      nextParticipants.push(candidate);
+    }
+
+    nextIndex++;
+  }
+
+  return nextParticipants;
 }
 function effectiveParticipantIds(node) {
   const originalIds =
@@ -171,8 +292,9 @@ function renderMembers() {
     card.onclick = event => {
       if (event.target.tagName === "BUTTON") return;
       selectedMemberId = card.dataset.memberId;
-      currentParentId = null;
-      renderWorkspace();
+currentParentId = null;
+renderWorkspace();
+renderPrayerTracker();
     };
   });
 
@@ -698,6 +820,7 @@ updateDashboard();
 renderCalendar();
 updateGreeting();
 updateTodaySummary();
+renderPrayerTracker();
 updateParentDashboard();
 updateParentActivity();
 renderPendingMemberDropdown();
@@ -869,7 +992,12 @@ async function completeTask(node, options = {}) {
   let newRotationIndex = node.rotationIndex || 0;
 
   if (node.repeat && node.repeat !== "none") {
-    const nextDate = getNextRepeatDate(newDueDate, node.repeat);
+    let nextDate = getNextRepeatDate(newDueDate, node.repeat);
+const today = formatDateLocal(new Date());
+
+while (nextDate && nextDate <= today) {
+  nextDate = getNextRepeatDate(nextDate, node.repeat);
+}
 
     if (nextDate && (!node.repeatUntil || nextDate <= node.repeatUntil)) {
       newDueDate = nextDate;
@@ -901,6 +1029,14 @@ newRotationIndex =
   dueDate: newDueDate,
   memberId: newMemberId,
   rotationIndex: newRotationIndex,
+    nextActiveParticipantIds: [],
+    activeParticipantIds:
+    !newDone && node.rotationEnabled
+      ? nextRotatingParticipantIds(
+          node,
+          node.completedBy || {}
+        )
+      : node.activeParticipantIds || [],
 
   completedBy: newDone
     ? node.completedBy || {}
@@ -927,6 +1063,44 @@ async function completeSharedTaskForMember(node, memberId) {
     ...(node.completedBy || {}),
     [memberId]: true
   };
+  const today = formatDateLocal(new Date());
+
+const isOverdueRotatingTask =
+  node.rotationEnabled &&
+  node.repeat &&
+  node.repeat !== "none" &&
+  node.dueDate &&
+  node.dueDate < today;
+
+if (isOverdueRotatingTask) {
+  let nextDate =
+    getNextRepeatDate(node.dueDate, node.repeat);
+
+  while (nextDate && nextDate <= today) {
+    nextDate =
+      getNextRepeatDate(nextDate, node.repeat);
+  }
+
+  if (
+    nextDate &&
+    (!node.repeatUntil || nextDate <= node.repeatUntil)
+  ) {
+    const nextParticipants =
+      nextRotatingParticipantIds(node, completedBy);
+
+    await updateNode(node.id, {
+      dueDate: nextDate,
+      done: false,
+      completedAt: "",
+      activeParticipantIds: rotatingParticipantIds(node),
+      nextActiveParticipantIds: nextParticipants,
+completedBy,
+temporarySwaps: node.temporarySwaps || {}
+    });
+
+    return;
+  }
+}
 
   const everyoneDone = requiredMembers.every(
     id => completedBy[id] === true

@@ -4,16 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Family Hub v2</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
+</head>
+
 <body>
-  <header class="app-header"></header>
+  <header class="app-header">
     <div>
       <h1>Family Hub v2</h1>
       <p id="syncStatus">Starting…</p>
 
-<button id="parentModeBtn" type="button" class="ghost">
-  🔒 Parent mode
-</button>
+      <button id="parentModeBtn" type="button" class="ghost">
+        🔒 Parent mode
+      </button>
     </div>
   </header>
 
@@ -63,10 +65,70 @@
 
       <div id="todayItemsList"></div>
 
+        </div>
+
+  </div>
+
+</section>
+
+<section id="prayerTrackerCard" class="prayer-tracker-card">
+  <div class="prayer-header">
+    <div>
+      <h2>🕌 Prayer Tracker</h2>
+<p id="prayerMemberText">Select a family member</p>
+<p id="prayerLocationText">Harrow, United Kingdom</p>
+    </div>
+
+    <button
+      id="changePrayerLocationBtn"
+      class="prayer-location-button"
+      type="button"
+    >
+      ⚙ Change location
+    </button>
+  </div>
+
+  <p id="prayerDateText" class="prayer-date">
+    Today
+  </p>
+
+  <div id="prayerTimesList" class="prayer-times-list">
+
+    <div class="prayer-row">
+      <span>Fajr</span>
+      <strong>--:--</strong>
+      <input type="checkbox" data-prayer="fajr">
+    </div>
+
+    <div class="prayer-row">
+      <span>Dhuhr</span>
+      <strong>--:--</strong>
+      <input type="checkbox" data-prayer="dhuhr">
+    </div>
+
+    <div class="prayer-row">
+      <span>Asr</span>
+      <strong>--:--</strong>
+      <input type="checkbox" data-prayer="asr">
+    </div>
+
+    <div class="prayer-row">
+      <span>Maghrib</span>
+      <strong>--:--</strong>
+      <input type="checkbox" data-prayer="maghrib">
+    </div>
+
+    <div class="prayer-row">
+      <span>Isha</span>
+      <strong>--:--</strong>
+      <input type="checkbox" data-prayer="isha">
     </div>
 
   </div>
 
+  <div class="prayer-progress">
+  <strong id="prayerProgressText">0 of 5 completed</strong>
+</div>
 </section>
     <section id="dashboardPanel" class="panel">
   <div class="section-title">
@@ -336,6 +398,6 @@ window.addEventListener("unhandledrejection", function (e) {
   </div>
 </div>
   <script type="module" src="daily-inspiration.js"></script>
-  <script type="module" src="app.js?v=12"></script>
+  <script type="module" src="app.js?v=13"></script>
 </body>
 </html>
