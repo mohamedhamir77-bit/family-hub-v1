@@ -1187,3 +1187,124 @@ textarea {
     width: 100%;
   }
 }
+.prayer-location-dialog {
+  width: min(92vw, 520px);
+  border: none;
+  border-radius: 18px;
+  padding: 0;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.prayer-location-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.prayer-location-dialog-content {
+  padding: 22px;
+}
+
+.prayer-location-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.prayer-location-dialog-header h2 {
+  margin: 0 0 6px;
+}
+
+.prayer-location-dialog-header p {
+  margin: 0;
+}
+
+.prayer-location-dialog input[type="search"] {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  font: inherit;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+}
+
+.prayer-location-search-status {
+  margin: 10px 0;
+  font-size: 0.9rem;
+}
+
+.prayer-location-results {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+
+.prayer-location-result {
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: transparent;
+  color: #222;
+  cursor: pointer;
+}
+
+.prayer-location-result:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.prayer-location-result.selected {
+  outline: 2px solid currentColor;
+}
+
+.prayer-location-result strong,
+ color: #111;
+.prayer-location-result span {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.prayer-location-result span {
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+.prayer-location-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (max-width: 600px) {
+  .prayer-location-dialog {
+    width: calc(100vw - 24px);
+  }
+
+  .prayer-location-dialog-content {
+    padding: 18px;
+  }
+}
+.prayer-location-result {
+  background: white;
+  color: var(--text);
+  font-weight: 400;
+}
+
+.prayer-location-result:hover {
+  background: #f8fafc;
+  color: var(--text);
+}
+
+.prayer-location-result strong {
+  color: var(--text);
+}
+
+.prayer-location-result span {
+  color: var(--muted);
+}

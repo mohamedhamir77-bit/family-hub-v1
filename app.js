@@ -102,17 +102,387 @@ function renderPrayerTracker() {
     };
   });
 
-  function updatePrayerProgress() {
-    const completed = Array.from(checkboxes).filter(
-      checkbox => checkbox.checked
-    ).length;
+ function updatePrayerProgress() {
+  const completed = Array.from(checkboxes).filter(
+    checkbox => checkbox.checked
+  ).length;
 
-    progressText.textContent =
-      `${completed} of 5 completed`;
+  progressText.textContent =
+    `${completed} of 5 completed`;
+}
+
+    updatePrayerProgress();
+}
+
+async function loadPrayerTimes() {
+  console.log("Loading prayer times...");
+
+  const locationText = $("prayerLocationText");
+  const dateText = $("prayerDateText");
+
+  const city =
+    localStorage.getItem("prayerCity") || "Harrow";
+
+  const country =
+    localStorage.getItem("prayerCountry") ||
+    "United Kingdom";
+
+  try {
+    const url =
+      "https://api.aladhan.com/v1/timingsByCity" +
+      `?city=${encodeURIComponent(city)}` +
+      `&country=${encodeURIComponent(country)}` +
+      "&method=0";
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error("Prayer times could not be loaded");
+    }
+
+    const result = await response.json();
+
+    if (!result.data?.timings) {
+      throw new Error("No prayer times were returned");
+    }
+
+    const timings = result.data.timings;
+
+    const prayerTimes = {
+      fajr: timings.Fajr,
+      dhuhr: timings.Dhuhr,
+      asr: timings.Asr,
+      maghrib: timings.Maghrib,
+      isha: timings.Isha
+    };
+
+    const prayers = [
+      ["Fajr", timings.Fajr],
+      ["Dhuhr", timings.Dhuhr],
+      ["Asr", timings.Asr],
+      ["Maghrib", timings.Maghrib],
+      ["Isha", timings.Isha]
+    ];
+
+    function updateNextPrayer() {
+      const now = new Date();
+      let nextPrayerName = "";
+      let nextPrayerTime = null;
+
+      for (const [name, time] of prayers) {
+        const cleanTime = time.slice(0, 5);
+        const [hours, minutes] =
+          cleanTime.split(":").map(Number);
+
+        const prayerDate = new Date();
+        prayerDate.setHours(hours, minutes, 0, 0);
+
+        if (prayerDate > now) {
+          nextPrayerName = name;
+          nextPrayerTime = prayerDate;
+          break;
+        }
+      }
+
+      // After Isha, show tomorrow's Fajr
+      if (!nextPrayerTime) {
+        const fajrTime = prayers[0][1].slice(0, 5);
+
+        const [hours, minutes] =
+          fajrTime.split(":").map(Number);
+
+        nextPrayerName = "Fajr";
+        nextPrayerTime = new Date();
+
+        nextPrayerTime.setDate(
+          nextPrayerTime.getDate() + 1
+        );
+
+        nextPrayerTime.setHours(
+          hours,
+          minutes,
+          0,
+          0
+        );
+      }
+
+      const difference = nextPrayerTime - now;
+
+      const hoursLeft = Math.floor(
+        difference / 3600000
+      );
+
+      const minutesLeft = Math.floor(
+        (difference % 3600000) / 60000
+      );
+
+      $("nextPrayerName").textContent =
+        nextPrayerName;
+
+      $("nextPrayerCountdown").textContent =
+        `in ${hoursLeft}h ${minutesLeft}m`;
+    }
+
+    updateNextPrayer();
+
+    document
+      .querySelectorAll("[data-prayer]")
+      .forEach(checkbox => {
+        const prayer = checkbox.dataset.prayer;
+        const row = checkbox.closest(".prayer-row");
+        const timeText = row.querySelector("strong");
+
+        timeText.textContent =
+          prayerTimes[prayer]?.slice(0, 5) ||
+          "--:--";
+      });
+
+    const sunriseElement = $("sunriseTime");
+
+    if (sunriseElement) {
+      sunriseElement.textContent =
+        timings.Sunrise?.slice(0, 5) ||
+        "--:--";
+    }
+
+    locationText.textContent =
+      `${city}, ${country}`;
+
+    dateText.textContent =
+      new Date().toLocaleDateString("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+  } catch (error) {
+    console.error(
+      "Prayer time error:",
+      error
+    );
+
+    dateText.textContent =
+      `Prayer times unavailable: ${error.message}`;
+  }
+}
+loadPrayerTimes();
+const prayerLocationDialog =
+  $("prayerLocationDialog");
+
+const changePrayerLocationBtn =
+  $("changePrayerLocationBtn");
+
+const closePrayerLocationDialogBtn =
+  $("closePrayerLocationDialogBtn");
+
+const cancelPrayerLocationBtn =
+  $("cancelPrayerLocationBtn");
+
+const prayerLocationSearch =
+  $("prayerLocationSearch");
+
+const prayerLocationResults =
+  $("prayerLocationResults");
+
+const prayerLocationSearchStatus =
+  $("prayerLocationSearchStatus");
+
+const savePrayerLocationBtn =
+  $("savePrayerLocationBtn");
+
+function closePrayerLocationDialog() {
+  prayerLocationDialog.close();
+
+  prayerLocationSearch.value = "";
+  prayerLocationResults.innerHTML = "";
+
+  prayerLocationSearchStatus.textContent =
+    "Enter at least 3 letters.";
+
+  savePrayerLocationBtn.disabled = true;
+}
+
+changePrayerLocationBtn.onclick = () => {
+  prayerLocationDialog.showModal();
+
+  setTimeout(() => {
+    prayerLocationSearch.focus();
+  }, 100);
+};
+
+closePrayerLocationDialogBtn.onclick =
+  closePrayerLocationDialog;
+
+cancelPrayerLocationBtn.onclick =
+  closePrayerLocationDialog;
+
+prayerLocationDialog.onclick = event => {
+  if (event.target === prayerLocationDialog) {
+    closePrayerLocationDialog();
+  }
+};
+let selectedPrayerLocation = null;
+let prayerLocationSearchTimer = null;
+
+prayerLocationSearch.oninput = () => {
+  clearTimeout(prayerLocationSearchTimer);
+
+  const query =
+    prayerLocationSearch.value.trim();
+
+  selectedPrayerLocation = null;
+  savePrayerLocationBtn.disabled = true;
+  prayerLocationResults.innerHTML = "";
+
+  if (query.length < 3) {
+    prayerLocationSearchStatus.textContent =
+      "Enter at least 3 letters.";
+    return;
   }
 
-  updatePrayerProgress();
-}
+  prayerLocationSearchStatus.textContent =
+    "Searching...";
+
+  prayerLocationSearchTimer = setTimeout(async () => {
+    try {
+      const url =
+        "https://nominatim.openstreetmap.org/search" +
+        `?format=jsonv2` +
+        `&q=${encodeURIComponent(query)}` +
+        `&addressdetails=1` +
+        `&limit=5`;
+
+      const response = await fetch(url, {
+        headers: {
+          "Accept-Language": "en"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Location search failed");
+      }
+
+      const results = await response.json();
+
+      if (!results.length) {
+        prayerLocationSearchStatus.textContent =
+          "No matching locations found.";
+        return;
+      }
+
+      prayerLocationSearchStatus.textContent =
+        "Select the correct location.";
+
+      prayerLocationResults.innerHTML =
+        results.map((result, index) => {
+          const address = result.address || {};
+
+          const city =
+            address.city ||
+            address.town ||
+            address.village ||
+            address.municipality ||
+            result.name ||
+            query;
+
+          const country =
+            address.country || "";
+
+          return `
+            <button
+              type="button"
+              class="prayer-location-result"
+              data-location-index="${index}"
+            >
+              <strong>📍 ${city}</strong>
+              <span>${result.display_name}</span>
+            </button>
+          `;
+        }).join("");
+
+      document
+        .querySelectorAll("[data-location-index]")
+        .forEach(button => {
+          button.onclick = () => {
+            document
+              .querySelectorAll(".prayer-location-result")
+              .forEach(item => {
+                item.classList.remove("selected");
+              });
+
+            button.classList.add("selected");
+
+            const result =
+              results[Number(button.dataset.locationIndex)];
+
+            const address = result.address || {};
+
+            selectedPrayerLocation = {
+              city:
+                address.city ||
+                address.town ||
+                address.village ||
+                address.municipality ||
+                result.name ||
+                query,
+
+              country:
+                address.country || "",
+
+              latitude:
+                Number(result.lat),
+
+              longitude:
+                Number(result.lon),
+
+              displayName:
+                result.display_name
+            };
+
+            savePrayerLocationBtn.disabled = false;
+          };
+        });
+    } catch (error) {
+      console.error(
+        "Location search error:",
+        error
+      );
+
+      prayerLocationSearchStatus.textContent =
+        "Could not search for locations.";
+    }
+  }, 500);
+};
+savePrayerLocationBtn.onclick = async () => {
+  if (!selectedPrayerLocation) return;
+
+  localStorage.setItem(
+    "prayerCity",
+    selectedPrayerLocation.city
+  );
+
+  localStorage.setItem(
+    "prayerCountry",
+    selectedPrayerLocation.country
+  );
+
+  localStorage.setItem(
+    "prayerLatitude",
+    String(selectedPrayerLocation.latitude)
+  );
+
+  localStorage.setItem(
+    "prayerLongitude",
+    String(selectedPrayerLocation.longitude)
+  );
+
+  closePrayerLocationDialog();
+  await loadPrayerTimes();
+};
+
+
+
+
 function sharedProgress(node) {
   const participants = effectiveParticipantIds(node);
 

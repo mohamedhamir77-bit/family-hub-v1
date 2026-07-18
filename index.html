@@ -89,16 +89,27 @@
   </div>
 
   <p id="prayerDateText" class="prayer-date">
-    Today
-  </p>
+  Today
+</p>
 
-  <div id="prayerTimesList" class="prayer-times-list">
+<div class="next-prayer-card">
+  🕌 Next prayer:
+  <strong id="nextPrayerName">--</strong>
+  <span id="nextPrayerCountdown">--</span>
+</div>
+
+<div id="prayerTimesList" class="prayer-times-list">
 
     <div class="prayer-row">
       <span>Fajr</span>
       <strong>--:--</strong>
       <input type="checkbox" data-prayer="fajr">
     </div>
+    <div class="prayer-row sunrise-row">
+  <span>🌅 Sunrise</span>
+  <strong id="sunriseTime">--:--</strong>
+  <span></span>
+</div>
 
     <div class="prayer-row">
       <span>Dhuhr</span>
@@ -130,6 +141,68 @@
   <strong id="prayerProgressText">0 of 5 completed</strong>
 </div>
 </section>
+<dialog id="prayerLocationDialog" class="prayer-location-dialog">
+  <form method="dialog" class="prayer-location-dialog-content">
+
+    <div class="prayer-location-dialog-header">
+      <div>
+        <h2>🕌 Prayer Location</h2>
+        <p>Search for your city and select the correct location.</p>
+      </div>
+
+      <button
+        id="closePrayerLocationDialogBtn"
+        class="ghost"
+        type="button"
+        aria-label="Close prayer location dialog"
+      >
+        ✕
+      </button>
+    </div>
+
+    <label for="prayerLocationSearch">
+      Search city
+    </label>
+
+    <input
+      id="prayerLocationSearch"
+      type="search"
+      placeholder="e.g. Sarajevo"
+      autocomplete="off"
+    >
+
+    <p
+      id="prayerLocationSearchStatus"
+      class="prayer-location-search-status"
+    >
+      Enter at least 3 letters.
+    </p>
+
+    <div
+      id="prayerLocationResults"
+      class="prayer-location-results"
+    ></div>
+
+    <div class="prayer-location-dialog-actions">
+      <button
+        id="cancelPrayerLocationBtn"
+        class="ghost"
+        type="button"
+      >
+        Cancel
+      </button>
+
+      <button
+        id="savePrayerLocationBtn"
+        type="button"
+        disabled
+      >
+        Save location
+      </button>
+    </div>
+
+  </form>
+</dialog>
     <section id="dashboardPanel" class="panel">
   <div class="section-title">
     <h2>📊 Dashboard</h2>
