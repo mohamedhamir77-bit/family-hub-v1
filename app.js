@@ -26,6 +26,21 @@ let activities = [];
 let pointTransactions = [];
 let prayerTimes = {};
 const parentPin = "1234";
+function pointsFromCurrentMonth() {
+  const now = new Date();
+
+  return pointTransactions.filter(transaction => {
+    if (!transaction.createdAt) return false;
+
+    const transactionDate = new Date(transaction.createdAt);
+
+    return (
+      transactionDate.getFullYear() === now.getFullYear() &&
+      transactionDate.getMonth() === now.getMonth()
+    );
+  });
+}
+
 
 function updateDashboard() {
   const today = new Date().toISOString().split("T")[0];
@@ -717,7 +732,7 @@ function renderMembers() {
 
   const totals = {};
 
-pointTransactions.forEach(transaction => {
+pointsFromCurrentMonth().forEach(transaction => {
   const amount = Number(transaction.amount) || 0;
 
   totals[transaction.memberId] =
@@ -1396,6 +1411,84 @@ $("familyEconomyCard").onclick = () => {
     panel.scrollIntoView({
       behavior: "smooth"
     });
+    $("copyFamilySummaryBtn").onclick = async () => {
+  const today = formatDateLocal(new Date());
+
+  const dateText = new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+
+  const totals = {};
+
+  pointsFromCurrentMonth().forEach(transaction => {
+    totals[transaction.memberId] =
+      (totals[transaction.memberId] || 0) +
+      (Number(transaction.amount) || 0);
+  });
+
+  const todaysItems = nodes.filter(node =>
+    (node.type === "task" || node.type === "event") &&
+    shouldShowTaskToday(node, today)
+  );
+
+  let summary = `🏡 *FAMILY HUB SUMMARY*\n`;
+  summary += `📅 ${dateText}\n\n`;
+
+  members.forEach(member => {
+    const memberItems = todaysItems.filter(item => {
+      if (item.sharedEnabled) {
+        return effectiveParticipantIds(item).includes(member.id);
+      }
+
+      return item.memberId === member.id;
+    });
+
+    summary += `${member.emoji || "👤"} *${member.name}*\n`;
+    summary += `⭐ ${totals[member.id] || 0} points\n`;
+
+    if (!memberItems.length) {
+      summary += `🎉 No tasks today\n\n`;
+      return;
+    }
+
+    memberItems.forEach(item => {
+      const completed = item.sharedEnabled
+        ? item.completedBy?.[member.id] === true
+        : item.done === true;
+
+      const symbol = completed ? "✅" : "⬜";
+
+      summary += `${symbol} ${item.title}`;
+      if (item.notes?.trim()) {
+  summary += `\n   💬 ${item.notes.trim()}`;
+}
+
+      if (item.type === "task") {
+        summary += ` (+${item.points ?? 1} ⭐)`;
+      }
+
+      summary += `\n`;
+    });
+
+    summary += `\n`;
+  });
+
+  const familyTotal = Object.values(totals).reduce(
+    (total, points) => total + points,
+    0
+  );
+
+  summary += `📊 *FAMILY TOTAL*\n`;
+  summary += `⭐ ${familyTotal} points\n`;
+  summary += `📌 ${todaysItems.length} items today`;
+
+  await navigator.clipboard.writeText(summary);
+
+  alert("Family summary copied. You can now paste it into WhatsApp.");
+};
   }
 };
 $("savePointsAdjustmentBtn").onclick = async () => {
@@ -1888,11 +1981,18 @@ async function swapTaskOwner(node) {
 function occursOnDate(item, dateString) {
   if (!item.dueDate) return false;
 
-  if (item.type === "event" && item.endDate) {
-    return dateString >= item.dueDate && dateString <= item.endDate;
+  return item.dueDate === dateString;
+}
+function shouldShowTaskToday(item, dateString) {
+  if (item.type !== "task") {
+    return occursOnDate(item, dateString);
   }
 
-  return item.dueDate === dateString;
+  if (item.done) {
+    return item.dueDate === dateString;
+  }
+
+  return item.dueDate <= dateString;
 }
 function eventBandClass(item, dateString) {
   if (item.type !== "event" || !item.endDate) return "";
@@ -2132,9 +2232,9 @@ function updateTodaySummary() {
   ).length;
 
   const todayItems = relevantItems.filter(item =>
-    !item.done &&
-    item.dueDate === todayString
-  );
+  !item.done &&
+  shouldShowTaskToday(item, todayString)
+);
 
   const list = $("todayItemsList");
 
@@ -2478,7 +2578,7 @@ function renderFamilyEconomy() {
 
   const totals = {};
 
-  pointTransactions.forEach(transaction => {
+  pointsFromCurrentMonth().forEach(transaction => {
     const amount = Number(transaction.amount) || 0;
 
     totals[transaction.memberId] =
