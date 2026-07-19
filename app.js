@@ -784,6 +784,11 @@ function visibleNodes() {
 
     if (
       node.type === "task" &&
+      node.opportunityTaskEnabled
+    ) {
+      belongsToMember = true;
+    } else if (
+      node.type === "task" &&
       node.rotationEnabled &&
       node.sharedEnabled
     ) {
@@ -1006,7 +1011,13 @@ function renderWorkspace() {
   }
 </span>
         <div>
-          <strong>${node.title}</strong>
+          <strong>
+  ${
+    node.opportunityTaskEnabled
+      ? "⭐ "
+      : ""
+  }${node.title}
+</strong>
 
 ${
   node.notes
@@ -1015,8 +1026,34 @@ ${
 }
 
 <div class="meta-row">
-  <span class="badge">${node.type}</span>
+  <span class="badge">
+  ${
+    node.opportunityTaskEnabled
+      ? "⭐ Bonus"
+      : node.type
+  }
+</span>
   ${node.done ? `<span class="badge done">✅ Done</span>` : ""}
+  ${
+  node.opportunityTaskEnabled &&
+  node.awardedToMemberId
+    ? (() => {
+        const winner = members.find(
+          m => m.id === node.awardedToMemberId
+        );
+
+        return `
+          <span class="badge">
+            🏆 ${
+              winner
+                ? `${winner.emoji || "👤"} ${winner.name}`
+                : "Awarded"
+            }
+          </span>
+        `;
+      })()
+    : ""
+}
   ${node.dueDate ? `<span class="badge date">📅 ${node.dueDate}</span>` : ""}
   ${node.priority ? `<span class="badge priority-${node.priority}">${node.priority}</span>` : ""}
   ${
@@ -1101,24 +1138,38 @@ ${
     type="checkbox"
     data-complete-node="${node.id}"
     ${
-      node.sharedEnabled
-        ? node.completedBy?.[selectedMemberId]
-          ? "checked disabled"
-          : ""
-        : node.done
+      node.opportunityTaskEnabled
+  ? (
+      node.done
         ? "checked disabled"
-        : ""
+        : currentMember()?.role === "parent"
+        ? ""
+        : "disabled"
+    )
+  : node.sharedEnabled
+  ? node.completedBy?.[selectedMemberId]
+    ? "checked disabled"
+    : ""
+  : node.done
+  ? "checked disabled"
+  : ""
     }
   >
   <span>
-    ${
-      node.sharedEnabled
-        ? node.completedBy?.[selectedMemberId]
-          ? "Your part completed"
-          : "Complete your part"
-        : "Complete"
-    }
-  </span>
+  ${
+    node.opportunityTaskEnabled
+      ? (
+          currentMember()?.role === "parent"
+            ? "Complete and claim bonus"
+            : "Waiting for parent to award"
+        )
+      : node.sharedEnabled
+      ? node.completedBy?.[selectedMemberId]
+        ? "Your part completed"
+        : "Complete your part"
+      : "Complete"
+  }
+</span>
 </label>
   ${
   node.sharedEnabled
@@ -1131,6 +1182,18 @@ ${
         ⇄ Swap
       </button>
     `
+}
+${
+  node.opportunityTaskEnabled && parentMode && !node.done
+    ? `
+      <button
+        type="button"
+        class="ghost"
+        data-award-bonus-task="${node.id}">
+        ⭐ Award bonus
+      </button>
+    `
+    : ""
 }
   <button
     class="danger"
@@ -1167,6 +1230,16 @@ $("detailsParticipantsPerOccurrence").value =
   updateAssignmentControls();
 $("detailsSharedEnabled").checked =
   selectedNode.sharedEnabled === true;
+
+if (selectedNode.opportunityTaskEnabled) {
+  $("detailsAssignmentType").value = "opportunity";
+} else if (selectedNode.rotationEnabled) {
+  $("detailsAssignmentType").value = "rotating";
+} else if (selectedNode.sharedEnabled) {
+  $("detailsAssignmentType").value = "shared";
+} else {
+  $("detailsAssignmentType").value = "assigned";
+}
 
 renderSharedParticipants(selectedNode.participantIds || []);
 
@@ -1219,6 +1292,21 @@ document.querySelectorAll("[data-swap-node]").forEach(button => {
     await swapTaskOwner(node);
   };
 });
+document
+  .querySelectorAll("[data-award-bonus-task]")
+  .forEach(button => {
+    button.onclick = async event => {
+      event.stopPropagation();
+
+      const node = nodes.find(
+        item => item.id === button.dataset.awardBonusTask
+      );
+
+      if (!node) return;
+
+      await awardBonusTask(node);
+    };
+  });
   document.querySelectorAll("[data-delete-node]").forEach(button => {
     button.onclick = async event => {
   event.stopPropagation();
@@ -1268,6 +1356,7 @@ $("addItemBtn").onclick = async () => {
   points: 0,
   endDate: "",
   sharedEnabled: false,
+  opportunityTaskEnabled: false,
   participantIds: [],
   temporarySwaps: {},
   completedBy: {},
@@ -1340,6 +1429,8 @@ const rotationEnabled =
 const sharedEnabled =
   rotationEnabled ||
   $("detailsSharedEnabled").checked;
+  const opportunityTaskEnabled =
+  $("detailsAssignmentType").value === "opportunity";
 const wasJustCompleted =
   $("detailsDone").checked === true &&
   selectedNode.done !== true;
@@ -1359,6 +1450,7 @@ if (wasJustCompleted) {
     rotationMembers: rotationMembers,
 participantsPerOccurrence: participantsPerOccurrence,
 sharedEnabled: sharedEnabled,
+opportunityTaskEnabled: opportunityTaskEnabled,
 
 participantIds: rotationEnabled
   ? []
@@ -1398,6 +1490,7 @@ await updateNode(selectedNode.id, {
   rotationMembers: rotationMembers,
 participantsPerOccurrence: participantsPerOccurrence,
 sharedEnabled: sharedEnabled,
+opportunityTaskEnabled: opportunityTaskEnabled,
 
 participantIds: rotationEnabled
   ? []
@@ -1777,6 +1870,16 @@ $("detailsParticipantsPerOccurrence").value =
 $("detailsSharedEnabled").checked =
   item.sharedEnabled === true;
 
+if (item.opportunityTaskEnabled) {
+  $("detailsAssignmentType").value = "opportunity";
+} else if (item.rotationEnabled) {
+  $("detailsAssignmentType").value = "rotating";
+} else if (item.sharedEnabled) {
+  $("detailsAssignmentType").value = "shared";
+} else {
+  $("detailsAssignmentType").value = "assigned";
+}
+
 renderSharedParticipants(item.participantIds || []);
 
 updateAssignmentControls();
@@ -2068,7 +2171,156 @@ temporarySwaps: node.temporarySwaps || {}
     completedBy
   });
 }
+async function awardBonusTask(node) {
+  if (!node || !node.opportunityTaskEnabled) return;
+
+  if (!parentMode) {
+    alert("Only a parent can award a bonus task.");
+    return;
+  }
+
+  const availableMembers = members.filter(member =>
+    member.role !== "parent"
+  );
+
+  if (!availableMembers.length) {
+    alert("No children are available to receive this task.");
+    return;
+  }
+
+  const choices = availableMembers
+    .map(
+      (member, index) =>
+        `${index + 1}. ${member.emoji || "👤"} ${member.name}`
+    )
+    .join("\n");
+
+  const answer = prompt(
+    `Who completed "${node.title}"?\n\n${choices}\n\nEnter a number:`
+  );
+
+  if (!answer) return;
+
+  const selectedIndex = Number(answer) - 1;
+  const awardedMember = availableMembers[selectedIndex];
+
+  if (!awardedMember) {
+    alert("Please enter a valid number.");
+    return;
+  }
+
+  const confirmed = confirm(
+    `Award "${node.title}" to ${awardedMember.name} for ${
+      node.points ?? 0
+    } points?`
+  );
+
+  if (!confirmed) return;
+
+  const completedAt = new Date().toISOString();
+  const occurrenceDate =
+    node.dueDate || formatDateLocal(new Date());
+
+  await addActivity({
+    title: `Bonus awarded: ${node.title}`,
+    memberId: awardedMember.id,
+    completedAt,
+    originalType: "bonus-task",
+    recurring:
+      node.repeat && node.repeat !== "none",
+    repeat: node.repeat || "none",
+    dueDate: node.dueDate || ""
+  });
+
+  await addPointsTransaction({
+    memberId: awardedMember.id,
+    amount: node.points ?? 0,
+    type: "bonus-task-completed",
+    title: node.title,
+    taskId: node.id,
+    occurrenceDate
+  });
+
+  let newDueDate = node.dueDate || "";
+  let newDone = true;
+
+  if (node.repeat && node.repeat !== "none") {
+    let nextDate =
+      getNextRepeatDate(newDueDate, node.repeat);
+
+    const today = formatDateLocal(new Date());
+
+    while (nextDate && nextDate <= today) {
+      nextDate =
+        getNextRepeatDate(nextDate, node.repeat);
+    }
+
+    if (
+      nextDate &&
+      (!node.repeatUntil || nextDate <= node.repeatUntil)
+    ) {
+      newDueDate = nextDate;
+      newDone = false;
+    }
+  }
+
+  await updateNode(node.id, {
+    done: newDone,
+    completedAt: newDone ? completedAt : "",
+    dueDate: newDueDate,
+    awardedToMemberId: awardedMember.id,
+    awardedAt: completedAt
+  });
+
+  selectedNode = null;
+  $("detailsPanel").classList.add("hidden");
+
+  alert(
+    `${awardedMember.name} received ${
+      node.points ?? 0
+    } points.`
+  );
+}
 async function completeNodeFromList(node) {
+if (
+  node.opportunityTaskEnabled &&
+  currentMember()?.role === "parent"
+) {
+  if (node.done || node.awardedToMemberId) {
+  alert("This bonus task has already been completed.");
+  return;
+}
+  const completedAt = new Date().toISOString();
+
+  await addActivity({
+    title: `Bonus completed: ${node.title}`,
+    memberId: selectedMemberId,
+    completedAt,
+    originalType: "bonus-task",
+    recurring: node.repeat && node.repeat !== "none",
+    repeat: node.repeat || "none",
+    dueDate: node.dueDate || ""
+  });
+
+  await addPointsTransaction({
+    memberId: selectedMemberId,
+    amount: node.points ?? 0,
+    type: "bonus-task-completed",
+    title: node.title,
+    taskId: node.id,
+    occurrenceDate:
+      node.dueDate || formatDateLocal(new Date())
+  });
+
+  await updateNode(node.id, {
+  done: true,
+  completedAt,
+  awardedToMemberId: selectedMemberId,
+  awardedAt: completedAt
+});
+
+  return;
+}
   if (node.sharedEnabled) {
     await completeSharedTaskForMember(
       node,
@@ -2426,6 +2678,16 @@ $("detailsParticipantsPerOccurrence").value =
 $("detailsSharedEnabled").checked =
   item.sharedEnabled === true;
 
+if (item.opportunityTaskEnabled) {
+  $("detailsAssignmentType").value = "opportunity";
+} else if (item.rotationEnabled) {
+  $("detailsAssignmentType").value = "rotating";
+} else if (item.sharedEnabled) {
+  $("detailsAssignmentType").value = "shared";
+} else {
+  $("detailsAssignmentType").value = "assigned";
+}
+
 renderSharedParticipants(item.participantIds || []);
 
 updateAssignmentControls();
@@ -2635,6 +2897,16 @@ $("detailsParticipantsPerOccurrence").value =
 $("detailsSharedEnabled").checked =
   item.sharedEnabled === true;
 
+if (item.opportunityTaskEnabled) {
+  $("detailsAssignmentType").value = "opportunity";
+} else if (item.rotationEnabled) {
+  $("detailsAssignmentType").value = "rotating";
+} else if (item.sharedEnabled) {
+  $("detailsAssignmentType").value = "shared";
+} else {
+  $("detailsAssignmentType").value = "assigned";
+}
+
 renderSharedParticipants(item.participantIds || []);
 
 updateAssignmentControls();
@@ -2716,22 +2988,30 @@ function renderSharedParticipants(selectedIds = []) {
   `).join("");
 }
 function updateAssignmentControls() {
-  const rotationEnabled =
-    $("detailsRotationEnabled").checked;
+  const assignmentType =
+    $("detailsAssignmentType").value;
 
   const fixedSharedSection =
     $("fixedSharedSection");
 
+  const rotationSection =
+    $("rotationMembersList")
+      ?.closest(".details-section");
+
   if (fixedSharedSection) {
     fixedSharedSection.classList.toggle(
       "hidden",
-      rotationEnabled
+      assignmentType !== "shared"
+    );
+  }
+
+  if (rotationSection) {
+    rotationSection.classList.toggle(
+      "hidden",
+      assignmentType !== "rotating"
     );
   }
 }
-$("detailsRotationEnabled").onchange = () => {
-  updateAssignmentControls();
-};
 function updateParentDashboard() {
   if (!$("parentIncompleteCount")) return;
   const today = new Date().toISOString().split("T")[0];
