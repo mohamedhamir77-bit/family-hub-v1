@@ -1420,8 +1420,9 @@ watchMembers(newMembers => {
   $("syncStatus").textContent = "Online • synced";
 });
 
-watchNodes(newNodes => {
+watchNodes(async newNodes => {
   nodes = newNodes;
+  await processMissedRecurringTasks();
 
   if (
     selectedNode &&
@@ -1768,6 +1769,23 @@ function getNextRepeatDate(dateString, repeat) {
   }
 
   return formatDateLocal(date);
+}
+async function processMissedRecurringTasks() {
+  const today = formatDateLocal(new Date());
+
+  const missedRecurringTasks = nodes.filter(node =>
+    node.type === "task" &&
+    !node.done &&
+    node.dueDate &&
+    node.dueDate < today &&
+    node.repeat &&
+    node.repeat !== "none"
+  );
+
+  console.log(
+    "Missed recurring tasks:",
+    missedRecurringTasks
+  );
 }
 async function completeTask(node, options = {}) {
   if (!node) return;
