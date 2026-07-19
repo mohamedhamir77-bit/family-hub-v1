@@ -24,6 +24,9 @@ let calendarDate = new Date();
 let parentMode = false;
 let activities = [];
 let pointTransactions = [];
+let nodesLoaded = false;
+let pointsLoaded = false;
+let missedTasksProcessed = false;
 let prayerTimes = {};
 let appVersion = "";
 const parentPin = "1234";
@@ -1422,7 +1425,9 @@ watchMembers(newMembers => {
 
 watchNodes(async newNodes => {
   nodes = newNodes;
-  await processMissedRecurringTasks();
+  nodesLoaded = true;
+
+  await maybeProcessMissedRecurringTasks();
 
   if (
     selectedNode &&
@@ -1453,8 +1458,12 @@ watchActivity(newActivities => {
   activities = newActivities;
   updateParentActivity();
 });
-watchPoints(newTransactions => {
+watchPoints(async newTransactions => {
   pointTransactions = newTransactions;
+  pointsLoaded = true;
+
+  await maybeProcessMissedRecurringTasks();
+
   renderFamilyEconomy();
   renderMembers();
 });
@@ -1737,7 +1746,17 @@ function showDashboardResults(filter) {
 
 renderRotationMembers(item.rotationMembers || []);
 
-    $("detailsPanel").classList.remove("hidden");
+$("detailsParticipantsPerOccurrence").value =
+  item.participantsPerOccurrence || 1;
+
+$("detailsSharedEnabled").checked =
+  item.sharedEnabled === true;
+
+renderSharedParticipants(item.participantIds || []);
+
+updateAssignmentControls();
+
+$("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
   };
 });
@@ -1770,6 +1789,19 @@ function getNextRepeatDate(dateString, repeat) {
 
   return formatDateLocal(date);
 }
+async function maybeProcessMissedRecurringTasks() {
+  if (
+    missedTasksProcessed ||
+    !nodesLoaded ||
+    !pointsLoaded
+  ) {
+    return;
+  }
+
+  missedTasksProcessed = true;
+
+  await processMissedRecurringTasks();
+}
 async function processMissedRecurringTasks() {
   const today = formatDateLocal(new Date());
 
@@ -1782,10 +1814,67 @@ async function processMissedRecurringTasks() {
     node.repeat !== "none"
   );
 
-  console.log(
-    "Missed recurring tasks:",
-    missedRecurringTasks
-  );
+  console.log("Missed recurring tasks:", missedRecurringTasks);
+
+  for (const task of missedRecurringTasks) {
+    let missedDate = task.dueDate;
+    let nextDueDate = task.dueDate;
+
+    while (nextDueDate < today) {
+      const assignedMemberIds =
+        task.sharedEnabled
+          ? effectiveParticipantIds(task)
+          : [task.memberId];
+
+      for (const memberId of assignedMemberIds) {
+  const penaltyAlreadyExists =
+    pointTransactions.some(transaction =>
+      transaction.type === "missed-recurring-task" &&
+      transaction.taskId === task.id &&
+      transaction.memberId === memberId &&
+      transaction.occurrenceDate === missedDate
+    );
+
+  if (penaltyAlreadyExists) {
+    console.log(
+      `Penalty already recorded for "${task.title}" on ${missedDate}`
+    );
+
+    continue;
+  }
+
+  await addPointsTransaction({
+          memberId,
+          amount: -1,
+          type: "missed-recurring-task",
+          title: task.title,
+          reason: `Missed: ${task.title}`,
+          taskId: task.id,
+          occurrenceDate: missedDate,
+          displayOnMemberCard: true
+        });
+      }
+
+      nextDueDate =
+        getNextRepeatDate(nextDueDate, task.repeat);
+
+      missedDate = nextDueDate;
+    }
+console.log("ROLLOVER", {
+  title: task.title,
+  dueDate: task.dueDate,
+  participantsPerOccurrence: task.participantsPerOccurrence,
+  rotationMembers: task.rotationMembers
+});
+    await updateNode(task.id, {
+      dueDate: nextDueDate,
+      done: false
+    });
+
+    console.log(
+      `Rolled forward "${task.title}" from ${task.dueDate} to ${nextDueDate}`
+    );
+  }
 }
 async function completeTask(node, options = {}) {
   if (!node) return;
@@ -1850,7 +1939,14 @@ newRotationIndex =
       }
     }
   }
-
+console.log("COMPLETE TASK", {
+  title: node.title,
+  dueDate: node.dueDate,
+  repeat: node.repeat,
+  participantsPerOccurrence: node.participantsPerOccurrence,
+  rotationMembers: node.rotationMembers,
+  completedBy: node.completedBy
+});
   await updateNode(node.id, {
   done: newDone,
   completedAt: newDone ? completedAt : "",
@@ -2294,11 +2390,22 @@ function showCalendarDay(dateString) {
       $("detailsRepeat").value = item.repeat || "none";
       $("detailsPoints").value = item.points ?? 1;
       $("detailsRepeatUntil").value = item.repeatUntil || "";
-      $("detailsRotationEnabled").checked = item.rotationEnabled === true;
+      $("detailsRotationEnabled").checked =
+  item.rotationEnabled === true;
 
-      renderRotationMembers(item.rotationMembers || []);
+renderRotationMembers(item.rotationMembers || []);
 
-      $("detailsPanel").classList.remove("hidden");
+$("detailsParticipantsPerOccurrence").value =
+  item.participantsPerOccurrence || 1;
+
+$("detailsSharedEnabled").checked =
+  item.sharedEnabled === true;
+
+renderSharedParticipants(item.participantIds || []);
+
+updateAssignmentControls();
+
+$("detailsPanel").classList.remove("hidden");
       $("detailsPanel").scrollIntoView({ behavior: "smooth" });
     };
   });
@@ -2492,12 +2599,22 @@ function runGlobalSearch() {
     $("detailsRepeat").value = item.repeat || "none";
     $("detailsPoints").value = item.points ?? 1;
     $("detailsRepeatUntil").value = item.repeatUntil || "";
-    $("detailsRotationEnabled").checked =
+   $("detailsRotationEnabled").checked =
   item.rotationEnabled === true;
 
 renderRotationMembers(item.rotationMembers || []);
 
-    $("detailsPanel").classList.remove("hidden");
+$("detailsParticipantsPerOccurrence").value =
+  item.participantsPerOccurrence || 1;
+
+$("detailsSharedEnabled").checked =
+  item.sharedEnabled === true;
+
+renderSharedParticipants(item.participantIds || []);
+
+updateAssignmentControls();
+
+$("detailsPanel").classList.remove("hidden");
     $("detailsPanel").scrollIntoView({ behavior: "smooth" });
   };
 });
