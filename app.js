@@ -28,20 +28,37 @@ let nodesLoaded = false;
 let pointsLoaded = false;
 let missedTasksProcessed = false;
 let prayerTimes = {};
+
+const PRAYER_POINTS = {
+  withinHour: 10,
+  withinTwoHours: 5,
+  completed: 2
+};
+
 let appVersion = "";
 const parentPin = "1234";
-function pointsFromCurrentMonth() {
+function pointsFromCurrentWeek() {
   const now = new Date();
+
+  const startOfWeek = new Date(now);
+  const day = startOfWeek.getDay();
+
+  const daysSinceMonday =
+    day === 0 ? 6 : day - 1;
+
+  startOfWeek.setDate(
+    startOfWeek.getDate() - daysSinceMonday
+  );
+
+  startOfWeek.setHours(0, 0, 0, 0);
 
   return pointTransactions.filter(transaction => {
     if (!transaction.createdAt) return false;
 
-    const transactionDate = new Date(transaction.createdAt);
+    const transactionDate =
+      new Date(transaction.createdAt);
 
-    return (
-      transactionDate.getFullYear() === now.getFullYear() &&
-      transactionDate.getMonth() === now.getMonth()
-    );
+    return transactionDate >= startOfWeek;
   });
 }
 
@@ -190,17 +207,25 @@ async function awardPrayerPoints(prayer) {
   const diffMinutes =
     (now - prayerTime) / 60000;
 
-  if (diffMinutes >= 0 && diffMinutes <= 60) {
+  if (diffMinutes >= 0) {
 
-    await addPointsTransaction({
-      memberId,
-      amount: 2,
-      type: "prayer-on-time",
-      title: prayer,
-      occurrenceDate: today
-    });
+  let amount = PRAYER_POINTS.completed;
 
+  if (diffMinutes <= 60) {
+    amount = PRAYER_POINTS.withinHour;
+  } else if (diffMinutes <= 120) {
+    amount = PRAYER_POINTS.withinTwoHours;
   }
+
+  await addPointsTransaction({
+    memberId,
+    amount,
+    type: "prayer-on-time",
+    title: prayer,
+    occurrenceDate: today
+  });
+
+}
 
 }
 async function loadPrayerTimes() {
@@ -238,12 +263,12 @@ async function loadPrayerTimes() {
     const timings = result.data.timings;
 
     prayerTimes = {
-      fajr: timings.Fajr,
-      dhuhr: timings.Dhuhr,
-      asr: timings.Asr,
-      maghrib: timings.Maghrib,
-      isha: timings.Isha
-    };
+  fajr: timings.Fajr,
+  dhuhr: timings.Dhuhr,
+  asr: timings.Dhuhr,
+  maghrib: timings.Maghrib,
+  isha: timings.Maghrib
+};
 
     const prayers = [
       ["Fajr", timings.Fajr],
@@ -792,7 +817,7 @@ function renderMembers() {
 
   const totals = {};
 
-pointsFromCurrentMonth().forEach(transaction => {
+pointsFromCurrentWeek().forEach(transaction => {
   const amount = Number(transaction.amount) || 0;
 
   totals[transaction.memberId] =
@@ -813,7 +838,7 @@ list.innerHTML = members.map(member => {
     ) + 1;
 
   const totalPoints = totals[member.id] || 0;
-  const visibleAdjustments = pointsFromCurrentMonth()
+  const visibleAdjustments = pointsFromCurrentWeek()
   .filter(transaction =>
   transaction.memberId === member.id &&
   transaction.displayOnMemberCard !== false
@@ -1490,7 +1515,7 @@ $("familyEconomyCard").onclick = () => {
 
   const totals = {};
 
-  pointsFromCurrentMonth().forEach(transaction => {
+   pointsFromCurrentWeek().forEach(transaction => {
     totals[transaction.memberId] =
       (totals[transaction.memberId] || 0) +
       (Number(transaction.amount) || 0);
@@ -1515,7 +1540,7 @@ $("familyEconomyCard").onclick = () => {
 
     summary += `${member.emoji || "👤"} *${member.name}*\n`;
     summary += `⭐ ${totals[member.id] || 0} points\n`;
-    const manualAdjustments = pointsFromCurrentMonth()
+    const manualAdjustments = pointsFromCurrentWeek()
   .filter(transaction =>
     transaction.memberId === member.id &&
 transaction.displayOnMemberCard !== false &&
@@ -1526,7 +1551,7 @@ transaction.displayOnMemberCard !== false &&
     )
   )
   .slice(0, 5);
-  console.log("POINTS", pointsFromCurrentMonth());
+  console.log("POINTS", pointsFromCurrentWeek());
 
 if (manualAdjustments.length) {
   summary += `📝 Manual point changes:\n`;
@@ -2811,7 +2836,7 @@ function renderFamilyEconomy() {
 
   const totals = {};
 
-  pointsFromCurrentMonth().forEach(transaction => {
+  pointsFromCurrentWeek().forEach(transaction => {
     const amount = Number(transaction.amount) || 0;
 
     totals[transaction.memberId] =
@@ -2859,7 +2884,7 @@ function renderFamilyEconomy() {
   `;
 
   const recentTransactions =
-  pointsFromCurrentMonth().slice(0, 10);
+  pointsFromCurrentWeek().slice(0, 10);
 
   ledger.innerHTML = "";
 }
