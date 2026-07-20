@@ -1992,7 +1992,7 @@ async function processMissedRecurringTasks() {
           amount: -1,
           type: "missed-recurring-task",
           title: task.title,
-          reason: `Missed: ${task.title}`,
+          reason: `Didn't complete "${task.title}"`,
           taskId: task.id,
           occurrenceDate: missedDate,
           displayOnMemberCard: true
