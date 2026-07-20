@@ -1649,23 +1649,27 @@ $("familyEconomyCard").onclick = () => {
 
     summary += `${member.emoji || "👤"} *${member.name}*\n`;
     summary += `⭐ ${totals[member.id] || 0} points\n`;
-    const manualAdjustments = pointsFromCurrentWeek()
+    const pointMessages = pointsFromCurrentWeek()
   .filter(transaction =>
     transaction.memberId === member.id &&
-transaction.displayOnMemberCard !== false &&
     (
-      transaction.adjustedByParent === true ||
-      transaction.type === "manual-addition" ||
-      transaction.type === "manual-deduction"
+      transaction.type === "prayer-on-time" ||
+      transaction.type === "missed-recurring-task" ||
+      (
+        transaction.displayOnMemberCard !== false &&
+        (
+          transaction.adjustedByParent === true ||
+          transaction.type === "manual-addition" ||
+          transaction.type === "manual-deduction"
+        )
+      )
     )
   )
   .slice(0, 5);
-  console.log("POINTS", pointsFromCurrentWeek());
-
-if (manualAdjustments.length) {
+if (pointMessages.length) {
   summary += `📝 Manual point changes:\n`;
 
-  manualAdjustments.forEach(transaction => {
+  pointMessages.forEach(transaction => {
     const amount = Number(transaction.amount) || 0;
     const reason =
       transaction.reason?.trim() ||
@@ -2038,14 +2042,16 @@ async function completeTask(node, options = {}) {
   });
 
   await addPointsTransaction({
-    memberId: node.memberId,
-    amount: node.points ?? 1,
-    type: "task-completed",
-    title: node.title,
-    taskId: node.id,
-    occurrenceDate:
-      node.dueDate || formatDateLocal(new Date())
-  });
+  memberId: node.memberId,
+  amount: node.points ?? 1,
+  type: "task-completed",
+  title: node.title,
+  reason: `Completed "${node.title}"`,
+  taskId: node.id,
+  occurrenceDate:
+    node.dueDate || formatDateLocal(new Date()),
+  displayOnMemberCard: true
+});
 
   let newDueDate = node.dueDate || "";
   let newDone = true;
@@ -2183,9 +2189,10 @@ temporarySwaps: node.temporarySwaps || {}
   }
 
   await completeTask({
-    ...node,
-    completedBy
-  });
+  ...node,
+  memberId,
+  completedBy
+});
 }
 async function awardBonusTask(node) {
   if (!node || !node.opportunityTaskEnabled) return;
