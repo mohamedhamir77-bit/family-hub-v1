@@ -37,6 +37,7 @@ const PRAYER_POINTS = {
 
 let appVersion = "";
 const parentPin = "1234";
+
 function pointsFromCurrentWeek() {
   const now = new Date();
 
@@ -53,15 +54,20 @@ function pointsFromCurrentWeek() {
   startOfWeek.setHours(0, 0, 0, 0);
 
   return pointTransactions.filter(transaction => {
-    if (!transaction.createdAt) return false;
+    const relevantDate =
+      transaction.occurrenceDate ||
+      transaction.createdAt;
+
+    if (!relevantDate) return false;
 
     const transactionDate =
-      new Date(transaction.createdAt);
+      relevantDate.includes("T")
+        ? new Date(relevantDate)
+        : new Date(`${relevantDate}T00:00:00`);
 
     return transactionDate >= startOfWeek;
   });
 }
-
 
 function updateDashboard() {
   const today = new Date().toISOString().split("T")[0];
@@ -1336,6 +1342,9 @@ $("backToMembers").onclick = () => {
 
 $("addItemBtn").onclick = async () => {
 
+  selectedNode = null;
+  $("detailsPanel").classList.add("hidden");
+
   if (!parentMode) {
     alert("Only a parent can add items.");
     return;
@@ -1370,6 +1379,8 @@ rotationMembers: [],
 rotationIndex: 0,
 participantsPerOccurrence: 1
 });
+selectedNode = null;
+$("detailsPanel").classList.add("hidden");
 }; 
 
 $("memberForm").onsubmit = async event => {
@@ -3122,6 +3133,8 @@ function renderFamilyEconomy() {
     totals[transaction.memberId] =
       (totals[transaction.memberId] || 0) + amount;
   });
+  console.log(pointsFromCurrentWeek());
+console.log(totals);
 
   const rankedMembers = members
     .map(member => ({
