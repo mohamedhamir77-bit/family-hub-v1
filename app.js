@@ -195,7 +195,7 @@ async function awardPrayerPoints(prayer) {
   const alreadyAwarded = pointTransactions.some(t =>
     t.type === "prayer-on-time" &&
     t.memberId === memberId &&
-    t.title === prayer &&
+    t.title?.toLowerCase() === prayer.toLowerCase() &&
     t.occurrenceDate === today
   );
 
@@ -223,13 +223,18 @@ async function awardPrayerPoints(prayer) {
     amount = PRAYER_POINTS.withinTwoHours;
   }
 
-  await addPointsTransaction({
-    memberId,
-    amount,
-    type: "prayer-on-time",
-    title: prayer,
-    occurrenceDate: today
-  });
+  const prayerName =
+  prayer.charAt(0).toUpperCase() + prayer.slice(1);
+
+await addPointsTransaction({
+  memberId,
+  amount,
+  type: "prayer-on-time",
+  title: prayerName,
+  reason: `${prayerName} prayer completed`,
+  occurrenceDate: today,
+  displayOnMemberCard: true
+});
 
 }
 
