@@ -1962,65 +1962,169 @@ async function processMissedRecurringTasks() {
     node.repeat !== "none"
   );
 
-  console.log("Missed recurring tasks:", missedRecurringTasks);
+  console.log(
+    "Missed recurring tasks:",
+    missedRecurringTasks
+  );
 
   for (const task of missedRecurringTasks) {
-    let missedDate = task.dueDate;
-    let nextDueDate = task.dueDate;
+    let workingTask = {
+      ...task,
+      completedBy: task.completedBy || {},
+      temporarySwaps: task.temporarySwaps || {}
+    };
 
-    while (nextDueDate < today) {
+    let missedDate = task.dueDate;
+
+    while (missedDate < today) {
       const assignedMemberIds =
-        task.sharedEnabled
-          ? effectiveParticipantIds(task)
-          : [task.memberId];
+        workingTask.rotationEnabled ||
+        workingTask.sharedEnabled
+          ? effectiveParticipantIds(workingTask)
+          : [workingTask.memberId];
 
       for (const memberId of assignedMemberIds) {
-  const penaltyAlreadyExists =
-    pointTransactions.some(transaction =>
-      transaction.type === "missed-recurring-task" &&
-      transaction.taskId === task.id &&
-      transaction.memberId === memberId &&
-      transaction.occurrenceDate === missedDate
-    );
+        if (!memberId) continue;
 
-  if (penaltyAlreadyExists) {
-    console.log(
-      `Penalty already recorded for "${task.title}" on ${missedDate}`
-    );
+        const penaltyAlreadyExists =
+          pointTransactions.some(transaction =>
+            transaction.type ===
+              "missed-recurring-task" &&
+            transaction.taskId === task.id &&
+            transaction.memberId === memberId &&
+            transaction.occurrenceDate === missedDate
+          );
 
-    continue;
-  }
-
-  await addPointsTransaction({
-          memberId,
-          amount: -1,
-          type: "missed-recurring-task",
-          title: task.title,
-          reason: `Didn't complete "${task.title}"`,
-          taskId: task.id,
-          occurrenceDate: missedDate,
-          displayOnMemberCard: true
-        });
+        if (!penaltyAlreadyExists) {
+          await addPointsTransaction({
+            memberId,
+            amount: -1,
+            type: "missed-recurring-task",
+            title: task.title,
+            reason: `Didn't complete "${task.title}"`,
+            taskId: task.id,
+            occurrenceDate: missedDate,
+            displayOnMemberCard: true
+          });
+        }
       }
 
-      nextDueDate =
-        getNextRepeatDate(nextDueDate, task.repeat);
+      const nextDueDate = getNextRepeatDate(
+        missedDate,
+        task.repeat
+      );
+
+      if (!nextDueDate) break;
+
+      if (
+        workingTask.rotationEnabled &&
+        Array.isArray(workingTask.rotationMembers) &&
+        workingTask.rotationMembers.length
+      ) {
+        const pool = workingTask.rotationMembers;
+
+        const participantCount = Math.min(
+          Math.max(
+            1,
+            Number(
+              workingTask.participantsPerOccurrence
+            ) || 1
+          ),
+          pool.length
+        );
+
+        let currentRotationIndex =
+          Number.isInteger(
+            workingTask.rotationIndex
+          )
+            ? workingTask.rotationIndex
+            : 0;
+
+        const currentParticipants =
+          Array.isArray(
+            workingTask.activeParticipantIds
+          ) &&
+          workingTask.activeParticipantIds.length
+            ? workingTask.activeParticipantIds
+            : rotatingParticipantIds(workingTask);
+
+        const firstCurrentIndex = pool.indexOf(
+          currentParticipants[0]
+        );
+
+        if (firstCurrentIndex >= 0) {
+          currentRotationIndex =
+            firstCurrentIndex;
+        }
+
+        const nextRotationIndex =
+          (
+            currentRotationIndex +
+            participantCount
+          ) % pool.length;
+
+        const nextParticipants =
+          Array.from(
+            { length: participantCount },
+            (_, offset) =>
+              pool[
+                (
+                  nextRotationIndex +
+                  offset
+                ) % pool.length
+              ]
+          );
+
+        workingTask = {
+          ...workingTask,
+          dueDate: nextDueDate,
+          memberId:
+            nextParticipants[0] ||
+            workingTask.memberId,
+          rotationIndex: nextRotationIndex,
+          activeParticipantIds: nextParticipants,
+          nextActiveParticipantIds: [],
+          completedBy: {},
+          temporarySwaps: {}
+        };
+      } else {
+        workingTask = {
+          ...workingTask,
+          dueDate: nextDueDate,
+          completedBy: {},
+          temporarySwaps: {}
+        };
+      }
 
       missedDate = nextDueDate;
     }
-console.log("ROLLOVER", {
-  title: task.title,
-  dueDate: task.dueDate,
-  participantsPerOccurrence: task.participantsPerOccurrence,
-  rotationMembers: task.rotationMembers
-});
-    await updateNode(task.id, {
-      dueDate: nextDueDate,
-      done: false
-    });
+
+    const updateData = {
+      dueDate: workingTask.dueDate,
+      done: false,
+      completedAt: "",
+      completedBy: {},
+      temporarySwaps: {}
+    };
+
+    if (workingTask.rotationEnabled) {
+      updateData.memberId =
+        workingTask.memberId;
+
+      updateData.rotationIndex =
+        workingTask.rotationIndex;
+
+      updateData.activeParticipantIds =
+        workingTask.activeParticipantIds || [];
+
+      updateData.nextActiveParticipantIds = [];
+    }
+
+    await updateNode(task.id, updateData);
 
     console.log(
-      `Rolled forward "${task.title}" from ${task.dueDate} to ${nextDueDate}`
+      `Rolled forward "${task.title}" from ` +
+      `${task.dueDate} to ${workingTask.dueDate}`
     );
   }
 }
