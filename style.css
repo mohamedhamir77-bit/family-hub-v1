@@ -807,15 +807,20 @@ small {
   }
 
   .calendar-task {
-    font-size: 0;
     padding: 4px;
     margin-top: 4px;
     text-align: center;
   }
 
-  .calendar-task::first-letter {
-    font-size: 14px;
+  @media (max-width: 768px) {
+  .calendar-task-title {
+    font-size: 0.72rem;
   }
+
+  .calendar-task-people {
+    font-size: 0.62rem;
+  }
+}
 
   .calendar-more {
     font-size: 11px;
@@ -1364,4 +1369,27 @@ textarea {
     height: 44px;
     font-size: 24px;
   }
+}
+.calendar-task {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.calendar-task-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.calendar-task-people {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  opacity: 0.85;
 }

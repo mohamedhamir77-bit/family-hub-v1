@@ -141,7 +141,6 @@ function renderPrayerTracker() {
     checkbox.checked = savedPrayers[prayer] === true;
 
     checkbox.onchange = async () => {
-
   const wasChecked = savedPrayers[prayer];
 
   savedPrayers[prayer] = checkbox.checked;
@@ -151,8 +150,14 @@ function renderPrayerTracker() {
     JSON.stringify(savedPrayers)
   );
 
+  // Prayer has just been ticked
   if (!wasChecked && checkbox.checked) {
     await awardPrayerPoints(prayer);
+  }
+
+  // Prayer has just been unticked
+  if (wasChecked && !checkbox.checked) {
+    await removePrayerPoints(prayer);
   }
 
   updatePrayerProgress();
@@ -191,17 +196,17 @@ async function awardPrayerPoints(prayer) {
 
   const today = formatDateLocal(new Date());
 
-  // Prevent duplicate points for the same prayer
-  const alreadyAwarded = pointTransactions.some(t =>
-    t.type === "prayer-on-time" &&
-    t.memberId === memberId &&
-    t.title?.toLowerCase() === prayer.toLowerCase() &&
-    t.occurrenceDate === today
+  const alreadyAwarded = pointTransactions.some(transaction =>
+    transaction.type === "prayer-on-time" &&
+    transaction.memberId === memberId &&
+    transaction.title?.toLowerCase() === prayer.toLowerCase() &&
+    transaction.occurrenceDate === today
   );
 
   if (alreadyAwarded) return;
 
   const [hour, minute] = prayerTimes[prayer]
+    .slice(0, 5)
     .split(":")
     .map(Number);
 
@@ -210,10 +215,59 @@ async function awardPrayerPoints(prayer) {
 
   const now = new Date();
 
+  // Fajr gives zero points after sunrise
+  if (prayer === "fajr" && prayerTimes.sunrise) {
+    const [sunriseHour, sunriseMinute] =
+      prayerTimes.sunrise
+        .slice(0, 5)
+        .split(":")
+        .map(Number);
+
+    const sunriseTime = new Date();
+
+    sunriseTime.setHours(
+      sunriseHour,
+      sunriseMinute,
+      0,
+      0
+    );
+
+    if (now >= sunriseTime) {
+      return;
+    }
+  }
+
+  // Dhuhr and Asr give zero points after Maghrib
+  if (
+    (prayer === "dhuhr" || prayer === "asr") &&
+    prayerTimes.maghrib
+  ) {
+    const [maghribHour, maghribMinute] =
+      prayerTimes.maghrib
+        .slice(0, 5)
+        .split(":")
+        .map(Number);
+
+    const maghribTime = new Date();
+
+    maghribTime.setHours(
+      maghribHour,
+      maghribMinute,
+      0,
+      0
+    );
+
+    if (now >= maghribTime) {
+      return;
+    }
+  }
+
   const diffMinutes =
     (now - prayerTime) / 60000;
 
-  if (diffMinutes >= 0) {
+  if (diffMinutes < 0) {
+    return;
+  }
 
   let amount = PRAYER_POINTS.completed;
 
@@ -224,20 +278,35 @@ async function awardPrayerPoints(prayer) {
   }
 
   const prayerName =
-  prayer.charAt(0).toUpperCase() + prayer.slice(1);
+    prayer.charAt(0).toUpperCase() +
+    prayer.slice(1);
 
-await addPointsTransaction({
-  memberId,
-  amount,
-  type: "prayer-on-time",
-  title: prayerName,
-  reason: `${prayerName} prayer completed`,
-  occurrenceDate: today,
-  displayOnMemberCard: true
-});
-
+  await addPointsTransaction({
+    memberId,
+    amount,
+    type: "prayer-on-time",
+    title: prayerName,
+    reason: `${prayerName} prayer completed`,
+    occurrenceDate: today,
+    displayOnMemberCard: true
+  });
 }
+async function removePrayerPoints(prayer) {
+  const memberId = selectedMemberId;
+  if (!memberId) return;
 
+  const today = formatDateLocal(new Date());
+
+  const transaction = pointTransactions.find(item =>
+    item.type === "prayer-on-time" &&
+    item.memberId === memberId &&
+    item.title?.toLowerCase() === prayer.toLowerCase() &&
+    item.occurrenceDate === today
+  );
+
+  if (!transaction) return;
+
+  await deletePointsTransaction(transaction.id);
 }
 async function loadPrayerTimes() {
   console.log("Loading prayer times...");
@@ -275,6 +344,7 @@ async function loadPrayerTimes() {
 
     prayerTimes = {
   fajr: timings.Fajr,
+  sunrise: timings.Sunrise,
   dhuhr: timings.Dhuhr,
   asr: timings.Dhuhr,
   maghrib: timings.Maghrib,
@@ -282,12 +352,10 @@ async function loadPrayerTimes() {
 };
 
     const prayers = [
-      ["Fajr", timings.Fajr],
-      ["Dhuhr", timings.Dhuhr],
-      ["Asr", timings.Asr],
-      ["Maghrib", timings.Maghrib],
-      ["Isha", timings.Isha]
-    ];
+  ["Fajr", timings.Fajr],
+  ["Dhuhr / Asr", timings.Dhuhr],
+  ["Maghrib / Isha", timings.Maghrib]
+];
 
     function updateNextPrayer() {
       const now = new Date();
@@ -690,27 +758,15 @@ function sharedParticipantIds(node) {
 }
 function rotatingParticipantIds(node) {
   const pool = Array.isArray(node.rotationMembers)
-    ? node.rotationMembers
+    ? node.rotationMembers.filter(memberId =>
+        members.some(member => member.id === memberId)
+      )
     : [];
-    const today = formatDateLocal(new Date());
-
-if (
-  Array.isArray(node.nextActiveParticipantIds) &&
-  node.nextActiveParticipantIds.length &&
-  node.dueDate &&
-  node.dueDate <= today
-) {
-  return node.nextActiveParticipantIds;
-}
-      if (
-    Array.isArray(node.activeParticipantIds) &&
-    node.activeParticipantIds.length
-  ) {
-    return node.activeParticipantIds;
-  }
 
   if (!node.rotationEnabled || !pool.length) {
-    return sharedParticipantIds(node);
+    return sharedParticipantIds(node).filter(memberId =>
+      members.some(member => member.id === memberId)
+    );
   }
 
   const requestedCount =
@@ -721,14 +777,64 @@ if (
     pool.length
   );
 
+  const today = formatDateLocal(new Date());
+
+  let storedParticipants = [];
+
+  if (
+    Array.isArray(node.nextActiveParticipantIds) &&
+    node.nextActiveParticipantIds.length &&
+    node.dueDate &&
+    node.dueDate <= today
+  ) {
+    storedParticipants =
+      node.nextActiveParticipantIds;
+  } else if (
+    Array.isArray(node.activeParticipantIds) &&
+    node.activeParticipantIds.length
+  ) {
+    storedParticipants =
+      node.activeParticipantIds;
+  }
+
+  const validStoredParticipants = [
+    ...new Set(
+      storedParticipants.filter(memberId =>
+        pool.includes(memberId) &&
+        members.some(member => member.id === memberId)
+      )
+    )
+  ];
+
+  if (validStoredParticipants.length >= count) {
+    return validStoredParticipants.slice(0, count);
+  }
+
   const startIndex = Number.isInteger(node.rotationIndex)
     ? node.rotationIndex
     : 0;
 
-  return Array.from({ length: count }, (_, offset) => {
-    const index = (startIndex + offset) % pool.length;
-    return pool[index];
-  });
+  const participants = [
+    ...validStoredParticipants
+  ];
+
+  let offset = 0;
+
+  while (
+    participants.length < count &&
+    offset < pool.length
+  ) {
+    const memberId =
+      pool[(startIndex + offset) % pool.length];
+
+    if (!participants.includes(memberId)) {
+      participants.push(memberId);
+    }
+
+    offset++;
+  }
+
+  return participants;
 }
 function nextRotatingParticipantIds(node, completedBy) {
   const pool = Array.isArray(node.rotationMembers)
@@ -788,6 +894,38 @@ function effectiveParticipantIds(node) {
   return originalIds.map(memberId =>
     swaps[memberId] || memberId
   );
+}
+function participantDisplay(node) {
+  if (!node || node.type !== "task") {
+    const member = members.find(
+      item => item.id === node?.memberId
+    );
+
+    return member
+      ? `${member.emoji || "👤"} ${member.name}`
+      : "Unassigned";
+  }
+
+  const participantIds =
+    node.sharedEnabled || node.rotationEnabled
+      ? effectiveParticipantIds(node)
+      : [node.memberId].filter(Boolean);
+
+  const participantNames = participantIds
+    .map(memberId => {
+      const member = members.find(
+        item => item.id === memberId
+      );
+
+      return member
+        ? `${member.emoji || "👤"} ${member.name}`
+        : null;
+    })
+    .filter(Boolean);
+
+  return participantNames.length
+    ? participantNames.join(" + ")
+    : "Unassigned";
 }
 function visibleNodes() {
   return nodes.filter(node => {
@@ -1045,6 +1183,16 @@ ${
   }
 </span>
   ${node.done ? `<span class="badge done">✅ Done</span>` : ""}
+  ${
+  node.type === "task" &&
+  (node.sharedEnabled || node.rotationEnabled)
+    ? `
+      <span class="badge">
+        👥 Currently due: ${participantDisplay(node)}
+      </span>
+    `
+    : ""
+}
   ${
   node.opportunityTaskEnabled &&
   node.awardedToMemberId
@@ -1998,7 +2146,7 @@ async function processMissedRecurringTasks() {
         if (!penaltyAlreadyExists) {
           await addPointsTransaction({
             memberId,
-            amount: -1,
+            amount: -(Number(task.points) || 0),
             type: "missed-recurring-task",
             title: task.title,
             reason: `Didn't complete "${task.title}"`,
@@ -2661,9 +2809,19 @@ const isToday = dateString === todayString;
       <div class="calendar-day ${isToday ? "today" : ""}" data-calendar-date="${dateString}">
         <strong>${day}</strong>
 
-        ${tasksForDay.slice(0, 2).map(task => `
+  ${tasksForDay.slice(0, 2).map(task => `
   <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${task.type === "event" ? "calendar-event" : ""}">
-    ${task.title}
+    <span class="calendar-task-title">${task.title}</span>
+
+    ${
+      task.type === "task"
+        ? `
+          <span class="calendar-task-people">
+            ${participantDisplay(task)}
+          </span>
+        `
+        : ""
+    }
   </div>
 `).join("")}
 
@@ -2730,7 +2888,7 @@ function showCalendarDay(dateString) {
   }
 
   taskList.innerHTML = itemsForDay.map(item => {
-    const member = members.find(m => m.id === item.memberId);
+    
 
     return `
       <div class="calendar-day-task" data-calendar-task-id="${item.id}">
@@ -2753,8 +2911,13 @@ function showCalendarDay(dateString) {
 
         <div class="meta-row">
           <span class="badge">
-            ${member ? `${member.emoji || "👤"} ${member.name}` : "Unknown"}
-          </span>
+  ${
+    item.type === "task" &&
+    (item.sharedEnabled || item.rotationEnabled)
+      ? `👥 Currently due: ${participantDisplay(item)}`
+      : participantDisplay(item)
+  }
+</span>
 
           ${
             item.repeat && item.repeat !== "none"
