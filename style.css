@@ -1393,3 +1393,12 @@ textarea {
   font-size: 0.72rem;
   opacity: 0.85;
 }
+.app-header {
+  overflow: hidden;
+}
+
+.app-header > div {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
