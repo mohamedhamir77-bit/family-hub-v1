@@ -3721,3 +3721,227 @@ ${
     ${pendingTasks.length ? `<h3>📌 Pending</h3>${pendingTasks.map(taskCard).join("")}` : ""}
   `;
 }
+
+const manageCalendarsBtn =
+  $("manageCalendarsBtn");
+
+const manageCalendarsDialog =
+  $("manageCalendarsDialog");
+
+const closeCalendarsDialogBtn =
+  $("closeCalendarsDialogBtn");
+
+if (
+  manageCalendarsBtn &&
+  manageCalendarsDialog
+) {
+  manageCalendarsBtn.onclick = () => {
+    manageCalendarsDialog.showModal();
+  };
+}
+
+if (
+  closeCalendarsDialogBtn &&
+  manageCalendarsDialog
+) {
+  closeCalendarsDialogBtn.onclick = () => {
+    manageCalendarsDialog.close();
+  };
+}
+const addExternalCalendarBtn =
+  $("addExternalCalendarBtn");
+
+const addCalendarDialog =
+  $("addCalendarDialog");
+
+const closeAddCalendarDialogBtn =
+  $("closeAddCalendarDialogBtn");
+
+const cancelAddCalendarBtn =
+  $("cancelAddCalendarBtn");
+
+if (
+  addExternalCalendarBtn &&
+  addCalendarDialog
+) {
+  addExternalCalendarBtn.onclick = () => {
+    manageCalendarsDialog.close();
+    addCalendarDialog.showModal();
+  };
+}
+
+if (
+  closeAddCalendarDialogBtn &&
+  addCalendarDialog
+) {
+  closeAddCalendarDialogBtn.onclick = () => {
+    addCalendarDialog.close();
+    manageCalendarsDialog.showModal();
+  };
+}
+
+if (
+  cancelAddCalendarBtn &&
+  addCalendarDialog
+) {
+  cancelAddCalendarBtn.onclick = () => {
+    addCalendarDialog.close();
+    manageCalendarsDialog.showModal();
+  };
+}
+const externalCalendarsStorageKey =
+  "familyHubExternalCalendars";
+
+let externalCalendars = JSON.parse(
+  localStorage.getItem(externalCalendarsStorageKey) || "[]"
+);
+
+function saveExternalCalendars() {
+  localStorage.setItem(
+    externalCalendarsStorageKey,
+    JSON.stringify(externalCalendars)
+  );
+}
+
+function renderExternalCalendars() {
+  const list = $("externalCalendarsList");
+
+  if (!list) return;
+
+  if (!externalCalendars.length) {
+    list.innerHTML = `
+      <p class="empty">
+        No external calendars added yet.
+      </p>
+    `;
+    return;
+  }
+
+  list.innerHTML = externalCalendars
+    .map(calendar => `
+      <div class="calendar-source-row">
+        <label>
+          <input
+  type="checkbox"
+  data-toggle-calendar="${calendar.id}"
+  ${calendar.enabled ? "checked" : ""}
+>
+
+          <strong>${calendar.name}</strong>
+        </label>
+
+        <small>
+          ${
+            calendar.sourceType === "url"
+              ? calendar.url
+              : `Uploaded file: ${calendar.fileName}`
+          }
+        </small>
+      </div>
+    `)
+    .join("");
+    document
+  .querySelectorAll("[data-toggle-calendar]")
+  .forEach(checkbox => {
+    checkbox.onchange = () => {
+      const calendar = externalCalendars.find(
+        item => item.id === checkbox.dataset.toggleCalendar
+      );
+
+      if (!calendar) return;
+
+      calendar.enabled = checkbox.checked;
+
+      saveExternalCalendars();
+      renderCalendar();
+    };
+  });
+}
+
+const saveExternalCalendarBtn =
+  $("saveExternalCalendarBtn");
+
+if (saveExternalCalendarBtn) {
+  saveExternalCalendarBtn.onclick = async () => {
+    const name =
+      $("externalCalendarName").value.trim();
+
+    const url =
+      $("externalCalendarUrl").value.trim();
+
+    const file =
+      $("externalCalendarFile").files[0];
+
+    if (!name) {
+      alert("Please enter a calendar name.");
+      return;
+    }
+
+    if (!url && !file) {
+      alert(
+        "Please enter a calendar URL or choose an .ics file."
+      );
+      return;
+    }
+
+    if (url && file) {
+      alert(
+        "Please use either a URL or a file, not both."
+      );
+      return;
+    }
+
+    let newCalendar;
+
+    if (file) {
+      if (
+        !file.name.toLowerCase().endsWith(".ics")
+      ) {
+        alert("Please choose an .ics calendar file.");
+        return;
+      }
+
+      const fileText = await file.text();
+
+      newCalendar = {
+        id: crypto.randomUUID(),
+        name,
+        sourceType: "file",
+        fileName: file.name,
+        fileText,
+        enabled: true,
+        addedAt: new Date().toISOString()
+      };
+    } else {
+      try {
+        new URL(url);
+      } catch {
+        alert("Please enter a valid calendar URL.");
+        return;
+      }
+
+      newCalendar = {
+        id: crypto.randomUUID(),
+        name,
+        sourceType: "url",
+        url,
+        enabled: true,
+        addedAt: new Date().toISOString()
+      };
+    }
+
+    externalCalendars.push(newCalendar);
+
+    saveExternalCalendars();
+    renderExternalCalendars();
+
+    $("externalCalendarName").value = "";
+    $("externalCalendarUrl").value = "";
+    $("externalCalendarFile").value = "";
+
+    addCalendarDialog.close();
+    manageCalendarsDialog.showModal();
+  };
+}
+
+renderExternalCalendars();

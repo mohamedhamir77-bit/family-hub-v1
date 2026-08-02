@@ -358,8 +358,16 @@
 
 <section id="calendarPanel" class="panel">
   <div class="section-title">
-    <h2>📅 Calendar</h2>
-  </div>
+  <h2>📅 Calendar</h2>
+
+  <button
+  id="manageCalendarsBtn"
+  type="button"
+  class="ghost"
+>
+  📅 Manage calendars
+</button>
+</div>
 
   <div class="calendar-header">
     <button id="prevMonthBtn" type="button" class="ghost">←</button>
@@ -374,7 +382,133 @@
     <div id="calendarDayTasks"></div>
   </div>
 </section>
+<dialog id="manageCalendarsDialog">
+  <div class="calendar-manager">
 
+    <div class="calendar-manager-header">
+      <div>
+        <h2>📅 Manage Calendars</h2>
+        <p>Choose which calendars appear in Family Hub.</p>
+      </div>
+
+      <button
+        id="closeCalendarsDialogBtn"
+        type="button"
+        class="ghost"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="calendar-source-list">
+
+      <div class="calendar-source-row">
+        <label>
+          <input
+            type="checkbox"
+            checked
+            disabled
+          >
+          <strong>Family Hub</strong>
+        </label>
+
+        <small>Built-in calendar</small>
+      </div>
+
+      <div id="externalCalendarsList">
+        <p class="empty">
+          No external calendars added yet.
+        </p>
+      </div>
+
+    </div>
+
+    <div class="calendar-manager-actions">
+      <button
+        id="addExternalCalendarBtn"
+        type="button"
+      >
+        + Add calendar
+      </button>
+
+      <button
+        id="refreshCalendarsBtn"
+        type="button"
+        class="ghost"
+      >
+        Refresh all
+      </button>
+    </div>
+
+  </div>
+</dialog>
+<dialog id="addCalendarDialog">
+  <div class="calendar-manager">
+
+    <div class="calendar-manager-header">
+      <div>
+        <h2>➕ Add Calendar</h2>
+        <p>Add an external calendar to Family Hub.</p>
+      </div>
+
+      <button
+        id="closeAddCalendarDialogBtn"
+        type="button"
+        class="ghost"
+      >
+        ✕
+      </button>
+    </div>
+
+    <label>
+      Calendar name
+      <input
+        id="externalCalendarName"
+        type="text"
+        placeholder="e.g. Mosque calendar"
+      >
+    </label>
+
+    <label>
+      Calendar URL
+      <input
+        id="externalCalendarUrl"
+        type="url"
+        placeholder="https://example.com/calendar.ics"
+      >
+    </label>
+    <div class="calendar-import-divider">
+  <span>OR</span>
+</div>
+
+<label>
+  Upload .ics file
+  <input
+    id="externalCalendarFile"
+    type="file"
+    accept=".ics,text/calendar"
+  >
+</label>
+
+    <div class="calendar-manager-actions">
+      <button
+        id="cancelAddCalendarBtn"
+        type="button"
+        class="ghost"
+      >
+        Cancel
+      </button>
+
+      <button
+        id="saveExternalCalendarBtn"
+        type="button"
+      >
+        Add calendar
+      </button>
+    </div>
+
+  </div>
+</dialog>
 <section id="pendingTasksPanel" class="panel">
 
   <div class="section-title">
@@ -572,6 +706,12 @@ window.addEventListener("unhandledrejection", function (e) {
   </div>
 </div>
   <script type="module" src="daily-inspiration.js"></script>
-  <script type="module" src="app.js?v=27"></script>
+  <input
+  id="calendarFileInput"
+  type="file"
+  accept=".ics"
+  style="display:none"
+>
+  <script type="module" src="app.js?v=33"></script>
 </body>
 </html>
