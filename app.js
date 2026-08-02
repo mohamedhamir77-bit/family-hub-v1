@@ -2766,6 +2766,19 @@ function eventBandClass(item, dateString) {
 
   return "event-band-middle";
 }
+function enabledExternalEvents() {
+  return externalCalendars
+    .filter(calendar => calendar.enabled)
+    .flatMap(calendar =>
+      (calendar.events || []).map(event => ({
+        ...event,
+        externalCalendarId: calendar.id,
+        externalCalendarName: calendar.name,
+        calendarColor: calendar.color || "purple"
+      }))
+    );
+}
+
 function renderCalendar() {
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -2800,18 +2813,42 @@ function renderCalendar() {
     const todayString = new Date().toISOString().split("T")[0];
 const isToday = dateString === todayString;
 
-    const tasksForDay = nodes.filter(node =>
+    const familyHubItems = nodes.filter(node =>
   (node.type === "task" || node.type === "event") &&
   occursOnDate(node, dateString)
 );
+
+const externalItems = enabledExternalEvents().filter(
+  event => event.dueDate === dateString
+);
+
+const tasksForDay = [
+  ...familyHubItems,
+  ...externalItems
+];
 
     days.push(`
       <div class="calendar-day ${isToday ? "today" : ""}" data-calendar-date="${dateString}">
         <strong>${day}</strong>
 
   ${tasksForDay.slice(0, 2).map(task => `
-  <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${task.type === "event" ? "calendar-event" : ""}">
-    <span class="calendar-task-title">${task.title}</span>
+  <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${
+  task.type === "event" ||
+  task.type === "external-event"
+    ? "calendar-event"
+    : ""
+} ${
+  task.type === "external-event"
+    ? `external-calendar-${task.calendarColor}`
+    : ""
+}">
+    <span class="calendar-task-title">
+  ${
+    task.type === "external-event"
+      ? `<span class="calendar-colour-dot"></span>${task.title}`
+      : task.title
+  }
+</span>
 
     ${
       task.type === "task"
@@ -2875,10 +2912,19 @@ function showCalendarDay(dateString) {
     year: "numeric"
   });
 
-  const itemsForDay = nodes.filter(node =>
-    (node.type === "task" || node.type === "event") &&
-    occursOnDate(node, dateString)
-  );
+  const familyHubItems = nodes.filter(node =>
+  (node.type === "task" || node.type === "event") &&
+  occursOnDate(node, dateString)
+);
+
+const externalItems = enabledExternalEvents().filter(
+  event => event.dueDate === dateString
+);
+
+const itemsForDay = [
+  ...familyHubItems,
+  ...externalItems
+];
 
   if (!itemsForDay.length) {
     taskList.innerHTML = `<p>No tasks or events due on this day.</p>`;
@@ -2894,8 +2940,9 @@ function showCalendarDay(dateString) {
       <div class="calendar-day-task" data-calendar-task-id="${item.id}">
         <strong>
           ${
-            item.type === "event"
-              ? "📅"
+            item.type === "event" ||
+item.type === "external-event"
+  ? "📅"
               : item.done
               ? "✅"
               : item.priority === "high"
@@ -2912,8 +2959,10 @@ function showCalendarDay(dateString) {
         <div class="meta-row">
           <span class="badge">
   ${
-    item.type === "task" &&
-    (item.sharedEnabled || item.rotationEnabled)
+    item.type === "external-event"
+      ? `📅 ${item.externalCalendarName || "External calendar"}`
+      : item.type === "task" &&
+        (item.sharedEnabled || item.rotationEnabled)
       ? `👥 Currently due: ${participantDisplay(item)}`
       : participantDisplay(item)
   }
@@ -3736,8 +3785,9 @@ if (
   manageCalendarsDialog
 ) {
   manageCalendarsBtn.onclick = () => {
-    manageCalendarsDialog.showModal();
-  };
+  renderExternalCalendars();
+  manageCalendarsDialog.showModal();
+};
 }
 
 if (
@@ -3795,7 +3845,111 @@ const externalCalendarsStorageKey =
 let externalCalendars = JSON.parse(
   localStorage.getItem(externalCalendarsStorageKey) || "[]"
 );
+externalCalendars = externalCalendars.map(calendar => {
+  if (
+    calendar.sourceType === "file" &&
+    calendar.fileText
+  ) {
+    return {
+      ...calendar,
+      events: parseIcsEvents(calendar.fileText)
+    };
+  }
 
+  return calendar;
+});
+function parseIcsDate(value) {
+  if (!value) return "";
+
+  const cleanValue = value.trim();
+
+  // All-day date: 20260815
+  if (/^\d{8}$/.test(cleanValue)) {
+    return (
+      `${cleanValue.slice(0, 4)}-` +
+      `${cleanValue.slice(4, 6)}-` +
+      `${cleanValue.slice(6, 8)}`
+    );
+  }
+
+  // Date and time: 20260815T193000Z
+  const match = cleanValue.match(
+    /^(\d{4})(\d{2})(\d{2})T/
+  );
+
+  if (!match) return "";
+
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function parseIcsEvents(icsText) {
+  if (!icsText) return [];
+
+  // Join folded lines used by some ICS files
+  const unfoldedText = icsText.replace(
+    /\r?\n[ \t]/g,
+    ""
+  );
+
+  const eventBlocks = unfoldedText.match(
+    /BEGIN:VEVENT[\s\S]*?END:VEVENT/g
+  ) || [];
+console.log("Found VEVENT blocks:", eventBlocks.length);
+  return eventBlocks
+    .map((block, index) => {
+      function readField(fieldName) {
+        const line = block
+          .split(/\r?\n/)
+          .find(line =>
+            line.startsWith(`${fieldName}:`) ||
+            line.startsWith(`${fieldName};`)
+          );
+
+        if (!line) return "";
+
+        const separatorIndex = line.indexOf(":");
+
+        return separatorIndex >= 0
+          ? line.slice(separatorIndex + 1).trim()
+          : "";
+      }
+
+      const title =
+        readField("SUMMARY") ||
+        "Untitled event";
+
+      const startDate =
+        parseIcsDate(readField("DTSTART"));
+
+      const endDate =
+        parseIcsDate(readField("DTEND"));
+
+      if (!startDate) return null;
+
+      return {
+        id:
+          readField("UID") ||
+          `external-event-${index}-${startDate}`,
+
+        title: title
+          .replace(/\\,/g, ",")
+          .replace(/\\n/g, " ")
+          .replace(/\\\\/g, "\\"),
+
+        dueDate: startDate,
+        endDate,
+        description: readField("DESCRIPTION")
+          .replace(/\\n/g, "\n")
+          .replace(/\\,/g, ","),
+
+        location: readField("LOCATION")
+          .replace(/\\,/g, ","),
+
+        type: "external-event"
+      };
+    })
+    .filter(Boolean);
+}
 function saveExternalCalendars() {
   localStorage.setItem(
     externalCalendarsStorageKey,
@@ -3820,6 +3974,7 @@ function renderExternalCalendars() {
   list.innerHTML = externalCalendars
     .map(calendar => `
       <div class="calendar-source-row">
+      <div class="calendar-source-main">
         <label>
           <input
   type="checkbox"
@@ -3831,12 +3986,24 @@ function renderExternalCalendars() {
         </label>
 
         <small>
-          ${
-            calendar.sourceType === "url"
-              ? calendar.url
-              : `Uploaded file: ${calendar.fileName}`
-          }
-        </small>
+  ${
+    calendar.sourceType === "url"
+      ? calendar.url
+      : `Uploaded file: ${calendar.fileName}`
+  }
+</small>
+
+<small>
+  📅 ${calendar.events?.length || 0} events found
+</small>
+</div>
+<button
+  type="button"
+  class="danger"
+  data-remove-calendar="${calendar.id}"
+>
+  Remove
+</button>
       </div>
     `)
     .join("");
@@ -3853,6 +4020,29 @@ function renderExternalCalendars() {
       calendar.enabled = checkbox.checked;
 
       saveExternalCalendars();
+      renderCalendar();
+    };
+  });
+document
+  .querySelectorAll("[data-remove-calendar]")
+  .forEach(button => {
+    button.onclick = () => {
+      const calendar = externalCalendars.find(
+        item => item.id === button.dataset.removeCalendar
+      );
+
+      if (!calendar) return;
+
+      if (!confirm(`Remove "${calendar.name}" calendar?`)) {
+        return;
+      }
+
+      externalCalendars = externalCalendars.filter(
+        item => item.id !== calendar.id
+      );
+
+      saveExternalCalendars();
+      renderExternalCalendars();
       renderCalendar();
     };
   });
@@ -3904,14 +4094,15 @@ if (saveExternalCalendarBtn) {
       const fileText = await file.text();
 
       newCalendar = {
-        id: crypto.randomUUID(),
-        name,
-        sourceType: "file",
-        fileName: file.name,
-        fileText,
-        enabled: true,
-        addedAt: new Date().toISOString()
-      };
+  id: crypto.randomUUID(),
+  name,
+  sourceType: "file",
+  fileName: file.name,
+  fileText,
+  events: parseIcsEvents(fileText),
+  enabled: true,
+  addedAt: new Date().toISOString()
+};
     } else {
       try {
         new URL(url);
@@ -3929,6 +4120,20 @@ if (saveExternalCalendarBtn) {
         addedAt: new Date().toISOString()
       };
     }
+    renderExternalCalendars();
+const alreadyExists = externalCalendars.some(calendar =>
+  calendar.name.toLowerCase() === name.toLowerCase() ||
+  (
+    file &&
+    calendar.sourceType === "file" &&
+    calendar.fileName === file.name
+  )
+);
+
+if (alreadyExists) {
+  alert("This calendar has already been added.");
+  return;
+}
 
     externalCalendars.push(newCalendar);
 
@@ -3944,4 +4149,3 @@ if (saveExternalCalendarBtn) {
   };
 }
 
-renderExternalCalendars();
