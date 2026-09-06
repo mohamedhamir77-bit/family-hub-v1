@@ -3933,7 +3933,21 @@ function parseIcsDate(value) {
 
   return `${match[1]}-${match[2]}-${match[3]}`;
 }
+function parseIcsRRule(rrule) {
+  if (!rrule) return null;
 
+  const rule = {};
+
+  rrule.split(";").forEach(part => {
+    const [key, value] = part.split("=");
+
+    if (key && value) {
+      rule[key] = value;
+    }
+  });
+
+  return rule;
+}
 function parseIcsEvents(icsText) {
   if (!icsText) return [];
 
