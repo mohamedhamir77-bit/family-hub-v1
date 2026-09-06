@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Family Hub v2</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 
 <body>
@@ -468,7 +468,39 @@
         placeholder="e.g. Mosque calendar"
       >
     </label>
-
+    <label>
+  Calendar icon
+  <select id="externalCalendarSymbol">
+    <option value="📅">📅 Calendar</option>
+    <option value="🕌">🕌 Mosque</option>
+    <option value="🏫">🏫 School</option>
+    <option value="💼">💼 Work</option>
+    <option value="⚽">⚽ Sport</option>
+    <option value="🎂">🎂 Birthday</option>
+    <option value="🎉">🎉 Celebration</option>
+    <option value="✈️">✈️ Travel</option>
+    <option value="🏥">🏥 Medical</option>
+    <option value="📚">📚 Study</option>
+    <option value="🛒">🛒 Shopping</option>
+    <option value="🏠">🏠 Home</option>
+    <option value="❤️">❤️ Family</option>
+    <option value="🌙">🌙 Islamic</option>
+    <option value="⭐">⭐ Important</option>
+  </select>
+</label>
+<label>
+  Calendar colour
+  <select id="externalCalendarColour">
+    <option value="auto">Automatic</option>
+    <option value="purple">🟣 Purple</option>
+    <option value="blue">🔵 Blue</option>
+    <option value="green">🟢 Green</option>
+    <option value="orange">🟠 Orange</option>
+    <option value="red">🔴 Red</option>
+    <option value="pink">🩷 Pink</option>
+    <option value="teal">🟦 Teal</option>
+  </select>
+</label>
     <label>
       Calendar URL
       <input
@@ -712,6 +744,6 @@ window.addEventListener("unhandledrejection", function (e) {
   accept=".ics"
   style="display:none"
 >
-  <script type="module" src="app.js?v=42"></script>
+  <script type="module" src="app.js?v=46"></script>
 </body>
 </html>

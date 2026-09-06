@@ -37,6 +37,57 @@ const PRAYER_POINTS = {
 
 let appVersion = "";
 const parentPin = "1234";
+const CALENDAR_COLOURS = [
+  "purple",
+  "blue",
+  "green",
+  "orange",
+  "red",
+  "pink",
+  "teal"
+];
+function calendarIconFromName(name) {
+  const text = name.toLowerCase();
+
+  if (
+    text.includes("hujjat") ||
+    text.includes("mosque") ||
+    text.includes("masjid") ||
+    text.includes("majlis")
+  ) {
+    return "🕌";
+  }
+
+  if (text.includes("school")) return "🏫";
+
+  if (
+    text.includes("football") ||
+    text.includes("soccer")
+  ) {
+    return "⚽";
+  }
+
+  if (text.includes("birthday")) return "🎂";
+  if (text.includes("work")) return "💼";
+  if (text.includes("medical") || text.includes("hospital")) return "🏥";
+  if (text.includes("holiday")) return "✈️";
+
+  return "📅";
+}
+function nextCalendarColour() {
+  const usedColours = externalCalendars.map(
+    calendar => calendar.color
+  );
+
+  return (
+    CALENDAR_COLOURS.find(
+      colour => !usedColours.includes(colour)
+    ) ||
+    CALENDAR_COLOURS[
+      externalCalendars.length % CALENDAR_COLOURS.length
+    ]
+  );
+}
 
 function pointsFromCurrentWeek() {
   const now = new Date();
@@ -2774,7 +2825,8 @@ function enabledExternalEvents() {
         ...event,
         externalCalendarId: calendar.id,
         externalCalendarName: calendar.name,
-        calendarColor: calendar.color || "purple"
+        calendarColor: calendar.color || "purple",
+        calendarSymbol: calendar.symbol || "📅"
       }))
     );
 }
@@ -2845,8 +2897,8 @@ const tasksForDay = [
     <span class="calendar-task-title">
   ${
     task.type === "external-event"
-      ? `<span class="calendar-colour-dot"></span>${task.title}`
-      : task.title
+  ? `<span class="calendar-colour-dot"></span>${task.calendarSymbol} ${task.title}`
+  : task.title
   }
 </span>
 
@@ -3982,7 +4034,9 @@ function renderExternalCalendars() {
   ${calendar.enabled ? "checked" : ""}
 >
 
-          <strong>${calendar.name}</strong>
+          <strong>
+  ${calendar.symbol || "📅"} ${calendar.name}
+</strong>
         </label>
 
         <small>
@@ -4055,6 +4109,10 @@ if (saveExternalCalendarBtn) {
   saveExternalCalendarBtn.onclick = async () => {
     const name =
       $("externalCalendarName").value.trim();
+      const selectedSymbol =
+  $("externalCalendarSymbol").value || "📅";
+  const selectedColour =
+  $("externalCalendarColour").value;
 
     const url =
       $("externalCalendarUrl").value.trim();
@@ -4096,6 +4154,11 @@ if (saveExternalCalendarBtn) {
       newCalendar = {
   id: crypto.randomUUID(),
   name,
+  symbol: selectedSymbol,
+color:
+  selectedColour === "auto"
+    ? nextCalendarColour()
+    : selectedColour,
   sourceType: "file",
   fileName: file.name,
   fileText,
@@ -4114,6 +4177,11 @@ if (saveExternalCalendarBtn) {
       newCalendar = {
         id: crypto.randomUUID(),
         name,
+        symbol: selectedSymbol,
+color:
+  selectedColour === "auto"
+    ? nextCalendarColour()
+    : selectedColour,
         sourceType: "url",
         url,
         enabled: true,
