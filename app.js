@@ -3933,6 +3933,19 @@ function parseIcsDate(value) {
 
   return `${match[1]}-${match[2]}-${match[3]}`;
 }
+function addDaysToDateString(dateString, days) {
+  const [year, month, day] = dateString
+    .split("-")
+    .map(Number);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+
+  date.setUTCDate(date.getUTCDate() + days);
+
+  return date.toISOString().slice(0, 10);
+}
 function parseIcsRRule(rrule) {
   if (!rrule) return null;
 
