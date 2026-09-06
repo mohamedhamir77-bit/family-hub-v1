@@ -4146,6 +4146,47 @@ function addDaysToDateString(dateString, days) {
 
   return date.toISOString().slice(0, 10);
 }
+function addMonthsToDateString(
+  dateString,
+  months
+) {
+  const [year, month, day] = dateString
+    .split("-")
+    .map(Number);
+
+  const targetMonth =
+    month - 1 + months;
+
+  const targetYear =
+    year + Math.floor(targetMonth / 12);
+
+  const normalizedMonth =
+    ((targetMonth % 12) + 12) % 12;
+
+  const lastDayOfMonth =
+    new Date(
+      Date.UTC(
+        targetYear,
+        normalizedMonth + 1,
+        0
+      )
+    ).getUTCDate();
+
+  const safeDay = Math.min(
+    day,
+    lastDayOfMonth
+  );
+
+  const date = new Date(
+    Date.UTC(
+      targetYear,
+      normalizedMonth,
+      safeDay
+    )
+  );
+
+  return date.toISOString().slice(0, 10);
+}
 function parseIcsRRule(rrule) {
   if (!rrule) return null;
 
@@ -4182,15 +4223,24 @@ function expandRecurringEvent(event) {
         730
       );
 
-  let stepDays;
+ let recurrenceType;
+let stepSize;
 
-  if (rule.FREQ === "DAILY") {
-    stepDays = interval;
-  } else if (rule.FREQ === "WEEKLY") {
-    stepDays = 7 * interval;
-  } else {
-    return [event];
-  }
+if (rule.FREQ === "DAILY") {
+  recurrenceType = "days";
+  stepSize = interval;
+} else if (rule.FREQ === "WEEKLY") {
+  recurrenceType = "days";
+  stepSize = 7 * interval;
+} else if (rule.FREQ === "MONTHLY") {
+  recurrenceType = "months";
+  stepSize = interval;
+} else if (rule.FREQ === "YEARLY") {
+  recurrenceType = "months";
+  stepSize = 12 * interval;
+} else {
+  return [event];
+}
 
   let durationDays = 0;
 
@@ -4243,10 +4293,16 @@ function expandRecurringEvent(event) {
       break;
     }
 
-    currentDate = addDaysToDateString(
-      currentDate,
-      stepDays
-    );
+    currentDate =
+  recurrenceType === "months"
+    ? addMonthsToDateString(
+        currentDate,
+        stepSize
+      )
+    : addDaysToDateString(
+        currentDate,
+        stepSize
+      );
   }
 
   return occurrences;
