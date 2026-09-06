@@ -1758,3 +1758,61 @@ textarea {
   padding: 4px 6px;
   font-size: 0.72rem;
 }
+#externalCalendarEventDialog {
+  width: min(92vw, 560px);
+  border: none;
+  border-radius: 22px;
+  padding: 0;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+}
+
+#externalCalendarEventDialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.external-event-popup {
+  position: relative;
+  padding: 28px;
+  background: white;
+  color: var(--text);
+}
+
+.external-event-popup h2 {
+  margin: 0 44px 18px 0;
+  font-size: 1.5rem;
+}
+
+.external-event-popup p {
+  margin: 10px 0;
+  line-height: 1.45;
+}
+
+.external-event-popup [data-event-description] {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.external-event-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.external-event-close:hover {
+  background: var(--soft);
+}

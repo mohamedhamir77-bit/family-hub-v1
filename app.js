@@ -2837,7 +2837,117 @@ function enabledExternalEvents() {
       }))
     );
 }
+function showExternalCalendarEvent(item) {
+  let dialog =
+    document.getElementById(
+      "externalCalendarEventDialog"
+    );
 
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "externalCalendarEventDialog";
+
+    dialog.innerHTML = `
+      <div class="external-event-popup">
+        <button
+          type="button"
+          class="external-event-close"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        <h2 data-event-title></h2>
+
+        <p data-event-date></p>
+        <p data-event-time></p>
+        <p data-event-calendar></p>
+
+        <div data-event-description></div>
+
+        <p data-event-location></p>
+      </div>
+    `;
+
+    document.body.appendChild(dialog);
+
+    dialog.querySelector(
+      ".external-event-close"
+    ).onclick = () => dialog.close();
+
+    dialog.addEventListener("click", event => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+  }
+
+  dialog.querySelector(
+    "[data-event-title]"
+  ).textContent = item.title || "Untitled event";
+
+  const date = new Date(
+    `${item.dueDate}T00:00:00`
+  );
+
+  dialog.querySelector(
+    "[data-event-date]"
+  ).textContent =
+    "📅 " +
+    date.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+
+  dialog.querySelector(
+    "[data-event-time]"
+  ).textContent =
+    item.startTime
+      ? `🕒 ${item.startTime}${
+          item.endTime
+            ? ` – ${item.endTime}`
+            : ""
+        }`
+      : "🕒 All day";
+
+  dialog.querySelector(
+    "[data-event-calendar]"
+  ).textContent =
+    `${item.calendarSymbol || "📅"} ${
+      item.externalCalendarName ||
+      "External calendar"
+    }`;
+
+  const description =
+    dialog.querySelector(
+      "[data-event-description]"
+    );
+
+  if (item.description) {
+    description.textContent =
+      item.description;
+    description.hidden = false;
+  } else {
+    description.hidden = true;
+  }
+
+  const location =
+    dialog.querySelector(
+      "[data-event-location]"
+    );
+
+  if (item.location) {
+    location.textContent =
+      `📍 ${item.location}`;
+    location.hidden = false;
+  } else {
+    location.hidden = true;
+  }
+
+  dialog.showModal();
+}
 function renderCalendar() {
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -2891,25 +3001,31 @@ const tasksForDay = [
         <strong>${day}</strong>
 
   ${tasksForDay.map((task, index) => `
- <div class="calendar-task ${index >= 4 ? "calendar-extra hidden" : ""} ${task.done ? "done" : task.priority || ""} ${
-  task.type === "event" ||
-  task.type === "external-event"
-    ? "calendar-event"
-    : ""
-} ${
-  task.type === "external-event"
-    ? `external-calendar-${task.calendarColor}`
-    : ""
-}">
+  <div
+    class="calendar-task ${index >= 4 ? "calendar-extra hidden" : ""} ${task.done ? "done" : task.priority || ""} ${
+      task.type === "event" ||
+      task.type === "external-event"
+        ? "calendar-event"
+        : ""
+    } ${
+      task.type === "external-event"
+        ? `external-calendar-${task.calendarColor}`
+        : ""
+    }"
+    ${
+      task.type === "external-event"
+        ? `data-external-event-id="${encodeURIComponent(task.id)}"
+           data-external-calendar-id="${encodeURIComponent(task.externalCalendarId)}"`
+        : ""
+    }
+  >
     <span class="calendar-task-title">
-  ${
-    task.type === "external-event"
-  ? `<span class="calendar-colour-dot"></span>${task.calendarSymbol} ${task.title}`
-  : task.title
-  }
-</span>
-
-    
+      ${
+        task.type === "external-event"
+          ? `<span class="calendar-colour-dot"></span>${task.calendarSymbol} ${task.title}`
+          : task.title
+      }
+    </span>
   </div>
 `).join("")}
 
@@ -2932,6 +3048,35 @@ while (days.length < 49) {
     showCalendarDay(dayCell.dataset.calendarDate);
   };
 });
+document
+  .querySelectorAll("[data-external-event-id]")
+  .forEach(card => {
+    card.onclick = event => {
+      event.stopPropagation();
+
+      const eventId =
+        decodeURIComponent(
+          card.dataset.externalEventId
+        );
+
+      const calendarId =
+        decodeURIComponent(
+          card.dataset.externalCalendarId
+        );
+
+      const item =
+        enabledExternalEvents().find(
+          eventItem =>
+            eventItem.id === eventId &&
+            eventItem.externalCalendarId ===
+              calendarId
+        );
+
+      if (!item) return;
+
+      showExternalCalendarEvent(item);
+    };
+  });
 document.querySelectorAll(".calendar-more").forEach(link => {
   link.onclick = event => {
     event.stopPropagation();
@@ -3939,6 +4084,7 @@ function parseIcsDate(value) {
     );
   }
 
+
   // Date and time: 20260815T193000Z
   const match = cleanValue.match(
     /^(\d{4})(\d{2})(\d{2})T/
@@ -3947,6 +4093,45 @@ function parseIcsDate(value) {
   if (!match) return "";
 
   return `${match[1]}-${match[2]}-${match[3]}`;
+}
+function parseIcsTime(value) {
+  if (!value) return "";
+
+  const cleanValue = value.trim();
+
+  // All-day event
+  if (/^\d{8}$/.test(cleanValue)) {
+    return "";
+  }
+
+  const match = cleanValue.match(
+    /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/
+  );
+
+  if (!match) return "";
+
+  // UTC time - convert to UK local time
+  if (cleanValue.endsWith("Z")) {
+    const date = new Date(
+      Date.UTC(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+        Number(match[4]),
+        Number(match[5])
+      )
+    );
+
+    return date.toLocaleTimeString("en-GB", {
+      timeZone: "Europe/London",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+  }
+
+  // Local ICS time
+  return `${match[4]}:${match[5]}`;
 }
 function addDaysToDateString(dateString, days) {
   const [year, month, day] = dateString
@@ -3976,10 +4161,10 @@ function parseIcsRRule(rrule) {
 
   return rule;
 }
-function expandWeeklyRecurringEvent(event) {
+function expandRecurringEvent(event) {
   const rule = parseIcsRRule(event.rrule);
 
-  if (!rule || rule.FREQ !== "WEEKLY") {
+  if (!rule) {
     return [event];
   }
 
@@ -3994,33 +4179,73 @@ function expandWeeklyRecurringEvent(event) {
     ? parseIcsDate(rule.UNTIL)
     : addDaysToDateString(
         new Date().toISOString().slice(0, 10),
-        548
+        730
       );
 
+  let stepDays;
+
+  if (rule.FREQ === "DAILY") {
+    stepDays = interval;
+  } else if (rule.FREQ === "WEEKLY") {
+    stepDays = 7 * interval;
+  } else {
+    return [event];
+  }
+
+  let durationDays = 0;
+
+  if (
+    event.endDate &&
+    event.endDate > event.dueDate
+  ) {
+    const start = new Date(
+      `${event.dueDate}T00:00:00Z`
+    );
+
+    const end = new Date(
+      `${event.endDate}T00:00:00Z`
+    );
+
+    durationDays = Math.round(
+      (end - start) / 86400000
+    );
+  }
+
   const occurrences = [];
+
   let currentDate = event.dueDate;
   let occurrenceNumber = 0;
 
   while (
     currentDate &&
     currentDate <= until &&
-    occurrenceNumber < 1000
+    occurrenceNumber < 10000
   ) {
     occurrences.push({
       ...event,
       id: `${event.id}-${occurrenceNumber}`,
-      dueDate: currentDate
+      dueDate: currentDate,
+      endDate:
+        durationDays > 0
+          ? addDaysToDateString(
+              currentDate,
+              durationDays
+            )
+          : event.endDate
     });
 
     occurrenceNumber++;
 
-    if (count && occurrenceNumber >= count) {
+    if (
+      count &&
+      occurrenceNumber >= count
+    ) {
       break;
     }
 
     currentDate = addDaysToDateString(
       currentDate,
-      7 * interval
+      stepDays
     );
   }
 
@@ -4063,11 +4288,20 @@ console.log("Found VEVENT blocks:", eventBlocks.length);
   readField("DESCRIPTION") ||
   "Untitled event";
 
-      const startDate =
-        parseIcsDate(readField("DTSTART"));
+      const startValue = readField("DTSTART");
+const endValue = readField("DTEND");
 
-      const endDate =
-        parseIcsDate(readField("DTEND"));
+const startDate =
+  parseIcsDate(startValue);
+
+const endDate =
+  parseIcsDate(endValue);
+
+const startTime =
+  parseIcsTime(startValue);
+
+const endTime =
+  parseIcsTime(endValue);
 
       if (!startDate) return null;
 
@@ -4083,6 +4317,8 @@ console.log("Found VEVENT blocks:", eventBlocks.length);
 
         dueDate: startDate,
         endDate,
+        startTime,
+endTime,
         description: readField("DESCRIPTION")
           .replace(/\\n/g, "\n")
           .replace(/\\,/g, ","),
@@ -4091,14 +4327,12 @@ console.log("Found VEVENT blocks:", eventBlocks.length);
   .replace(/\\,/g, ","),
   rrule: readField("RRULE"),
 
-rrule: readField("RRULE"),
-
 type: "external-event"
       };
     })
     .filter(Boolean);
-    return parsedEvents.flatMap(
-  expandWeeklyRecurringEvent
+ return parsedEvents.flatMap(
+  expandRecurringEvent
 );
 }
 function saveExternalCalendars() {
@@ -4265,28 +4499,47 @@ color:
   enabled: true,
   addedAt: new Date().toISOString()
 };
-    } else {
-      try {
-        new URL(url);
-      } catch {
-        alert("Please enter a valid calendar URL.");
-        return;
-      }
+   } else {
+  try {
+    new URL(url);
+  } catch {
+    alert("Please enter a valid calendar URL.");
+    return;
+  }
 
-      newCalendar = {
-        id: crypto.randomUUID(),
-        name,
-        symbol: selectedSymbol,
-color:
-  selectedColour === "auto"
-    ? nextCalendarColour()
-    : selectedColour,
-        sourceType: "url",
-        url,
-        enabled: true,
-        addedAt: new Date().toISOString()
-      };
-    }
+  let events;
+
+  try {
+    events = await fetchExternalCalendarEvents(url);
+  } catch (error) {
+    console.error(
+      "Calendar URL could not be loaded:",
+      error
+    );
+
+    alert(
+      "Family Hub could not load this calendar URL."
+    );
+
+    return;
+  }
+
+  newCalendar = {
+    id: crypto.randomUUID(),
+    name,
+    symbol: selectedSymbol,
+    color:
+      selectedColour === "auto"
+        ? nextCalendarColour()
+        : selectedColour,
+    sourceType: "url",
+    url,
+    events,
+    enabled: true,
+    addedAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString()
+  };
+}
     renderExternalCalendars();
 const alreadyExists = externalCalendars.some(calendar =>
   calendar.name.toLowerCase() === name.toLowerCase() ||
@@ -4317,7 +4570,67 @@ if (alreadyExists) {
 }
 const FAMILY_CALENDAR_FUNCTION_URL =
   "https://us-central1-family-hub-9b455.cloudfunctions.net/getFamilyCalendar";
+  const EXTERNAL_CALENDAR_FUNCTION_URL =
+  "https://us-central1-family-hub-9b455.cloudfunctions.net/fetchExternalCalendar";
 
+async function fetchExternalCalendarEvents(calendarUrl) {
+  const proxyUrl =
+    `${EXTERNAL_CALENDAR_FUNCTION_URL}?url=` +
+    encodeURIComponent(calendarUrl) +
+    `&t=${Date.now()}`;
+
+  const response = await fetch(proxyUrl, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Calendar request failed: ${response.status}`
+    );
+  }
+
+  const icsText = await response.text();
+
+  return parseIcsEvents(icsText);
+}
+async function refreshUrlCalendars() {
+  const urlCalendars = externalCalendars.filter(
+    calendar => calendar.sourceType === "url"
+  );
+
+  if (!urlCalendars.length) return;
+
+  let updated = false;
+
+  for (const calendar of urlCalendars) {
+    try {
+      calendar.events =
+        await fetchExternalCalendarEvents(
+          calendar.url
+        );
+
+      calendar.lastUpdated =
+        new Date().toISOString();
+
+      updated = true;
+
+      console.log(
+        `${calendar.name} synced: ${calendar.events.length} events`
+      );
+    } catch (error) {
+      console.error(
+        `Could not refresh ${calendar.name}:`,
+        error
+      );
+    }
+  }
+
+  if (updated) {
+    saveExternalCalendars();
+    renderExternalCalendars();
+    renderCalendar();
+  }
+}
 async function refreshFamilyGoogleCalendar() {
   try {
     const response = await fetch(
@@ -4372,4 +4685,14 @@ async function refreshFamilyGoogleCalendar() {
 }
 
 refreshFamilyGoogleCalendar();
+// Refresh Google Family calendar every 5 minutes
+setInterval(
+  refreshFamilyGoogleCalendar,
+  5 * 60 * 1000
+);
+refreshUrlCalendars();
 
+setInterval(
+  refreshUrlCalendars,
+  5 * 60 * 1000
+);
