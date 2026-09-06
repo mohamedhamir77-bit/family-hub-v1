@@ -13,24 +13,38 @@
       "**/node_modules/**"
     ],
     "headers": [
-  {
-    "source": "/index.html",
-    "headers": [
       {
-        "key": "Cache-Control",
-        "value": "no-cache, no-store, must-revalidate"
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/version.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
       }
     ]
   },
-  {
-    "source": "/version.json",
-    "headers": [
-      {
-        "key": "Cache-Control",
-        "value": "no-cache, no-store, must-revalidate"
-      }
-    ]
-  }
-]
-  }
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
 }

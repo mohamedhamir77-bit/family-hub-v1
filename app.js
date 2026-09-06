@@ -561,10 +561,10 @@ window.location.replace(
   }
 }
 
-checkForNewVersion();
+// checkForNewVersion();
 
 // Check again every 5 minutes
-setInterval(checkForNewVersion, 5 * 60 * 1000);
+// setInterval(checkForNewVersion, 5 * 60 * 1000);
 loadPrayerTimes();
 const prayerLocationDialog =
   $("prayerLocationDialog");
@@ -4315,4 +4315,61 @@ if (alreadyExists) {
     manageCalendarsDialog.showModal();
   };
 }
+const FAMILY_CALENDAR_FUNCTION_URL =
+  "https://us-central1-family-hub-9b455.cloudfunctions.net/getFamilyCalendar";
+
+async function refreshFamilyGoogleCalendar() {
+  try {
+    const response = await fetch(
+      FAMILY_CALENDAR_FUNCTION_URL
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Calendar request failed: ${response.status}`
+      );
+    }
+
+    const icsText = await response.text();
+    const events = parseIcsEvents(icsText);
+
+    let calendar = externalCalendars.find(
+      item => item.id === "google-family-calendar"
+    );
+
+    if (calendar) {
+      calendar.events = events;
+      calendar.lastUpdated = new Date().toISOString();
+    } else {
+      calendar = {
+        id: "google-family-calendar",
+        name: "Family",
+        symbol: "👨‍👩‍👧‍👦",
+        color: "blue",
+        sourceType: "google-live",
+        enabled: true,
+        events,
+        addedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      };
+
+      externalCalendars.push(calendar);
+    }
+
+    saveExternalCalendars();
+    renderExternalCalendars();
+    renderCalendar();
+
+    console.log(
+      `Family Google Calendar synced: ${events.length} events`
+    );
+  } catch (error) {
+    console.error(
+      "Family Google Calendar sync failed:",
+      error
+    );
+  }
+}
+
+refreshFamilyGoogleCalendar();
 
