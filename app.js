@@ -3995,9 +3995,12 @@ console.log("Found VEVENT blocks:", eventBlocks.length);
           .replace(/\\,/g, ","),
 
         location: readField("LOCATION")
-          .replace(/\\,/g, ","),
+  .replace(/\\,/g, ","),
+  rrule: readField("RRULE"),
 
-        type: "external-event"
+rrule: readField("RRULE"),
+
+type: "external-event"
       };
     })
     .filter(Boolean);
