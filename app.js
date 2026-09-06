@@ -4187,6 +4187,29 @@ function addMonthsToDateString(
 
   return date.toISOString().slice(0, 10);
 }
+function getIcsWeekdayCode(dateString) {
+  const [year, month, day] = dateString
+    .split("-")
+    .map(Number);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+
+  const weekdayCodes = [
+    "SU",
+    "MO",
+    "TU",
+    "WE",
+    "TH",
+    "FR",
+    "SA"
+  ];
+
+  return weekdayCodes[
+    date.getUTCDay()
+  ];
+}
 function parseIcsRRule(rrule) {
   if (!rrule) return null;
 
@@ -4262,6 +4285,85 @@ if (rule.FREQ === "DAILY") {
   }
 
   const occurrences = [];
+  if (
+  rule.FREQ === "WEEKLY" &&
+  rule.BYDAY
+) {
+  const allowedDays = rule.BYDAY
+    .split(",")
+    .map(day =>
+      day.replace(/^[+-]?\d+/, "")
+    );
+
+  let currentDate = event.dueDate;
+  let occurrenceNumber = 0;
+  let scannedDays = 0;
+
+  while (
+    currentDate &&
+    currentDate <= until &&
+    occurrenceNumber < 10000 &&
+    scannedDays < 50000
+  ) {
+    const start = new Date(
+      `${event.dueDate}T00:00:00Z`
+    );
+
+    const current = new Date(
+      `${currentDate}T00:00:00Z`
+    );
+
+    const daysSinceStart = Math.floor(
+      (current - start) / 86400000
+    );
+
+    const weekNumber = Math.floor(
+      daysSinceStart / 7
+    );
+
+    const isActiveWeek =
+      weekNumber % interval === 0;
+
+    const weekday =
+      getIcsWeekdayCode(currentDate);
+
+    if (
+      isActiveWeek &&
+      allowedDays.includes(weekday)
+    ) {
+      occurrences.push({
+        ...event,
+        id: `${event.id}-${occurrenceNumber}`,
+        dueDate: currentDate,
+        endDate:
+          durationDays > 0
+            ? addDaysToDateString(
+                currentDate,
+                durationDays
+              )
+            : event.endDate
+      });
+
+      occurrenceNumber++;
+
+      if (
+        count &&
+        occurrenceNumber >= count
+      ) {
+        break;
+      }
+    }
+
+    currentDate = addDaysToDateString(
+      currentDate,
+      1
+    );
+
+    scannedDays++;
+  }
+
+  return occurrences;
+}
 
   let currentDate = event.dueDate;
   let occurrenceNumber = 0;
