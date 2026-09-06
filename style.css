@@ -1622,3 +1622,139 @@ textarea {
   flex-shrink: 0;
   align-self: center;
 }
+/* ===== Calendar readability upgrade ===== */
+
+.calendar-day {
+  min-height: 140px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.calendar-task {
+  margin-top: 5px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  gap: 3px;
+}
+
+.calendar-task-title {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-task-people {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+.calendar-event {
+  border-radius: 7px;
+  text-align: left;
+}
+
+.calendar-more {
+  margin-top: 6px;
+  padding: 3px 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .calendar-day {
+    min-height: 105px;
+    padding: 4px;
+  }
+
+  .calendar-task {
+    padding: 4px 5px;
+    font-size: 10px;
+  }
+
+  .calendar-task-people {
+    display: none;
+  }
+}
+/* ===== Calendar readability upgrade ===== */
+
+.calendar-day {
+  min-height: 140px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.calendar-task {
+  margin-top: 5px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  gap: 3px;
+}
+
+.calendar-task-title {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-task-people {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+.calendar-event {
+  border-radius: 7px;
+  text-align: left;
+}
+
+.calendar-more {
+  margin-top: 6px;
+  padding: 3px 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .calendar-day {
+    min-height: 105px;
+    padding: 4px;
+  }
+
+  .calendar-task {
+    padding: 4px 5px;
+    font-size: 10px;
+  }
+
+  .calendar-task-people {
+    display: none;
+  }
+}
+/* Calendar titles: allow two readable lines */
+.calendar-task-title {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+
+  line-height: 1.15;
+}
+
+.calendar-day {
+  min-height: 165px;
+}
+.calendar-task {
+  padding: 4px 6px;
+  font-size: 0.72rem;
+}

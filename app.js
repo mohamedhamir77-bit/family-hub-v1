@@ -2796,6 +2796,13 @@ async function swapTaskOwner(node) {
 function occursOnDate(item, dateString) {
   if (!item.dueDate) return false;
 
+  if (item.endDate && item.endDate > item.dueDate) {
+    return (
+      dateString >= item.dueDate &&
+      dateString < item.endDate
+    );
+  }
+
   return item.dueDate === dateString;
 }
 function shouldShowTaskToday(item, dateString) {
@@ -2871,7 +2878,7 @@ const isToday = dateString === todayString;
 );
 
 const externalItems = enabledExternalEvents().filter(
-  event => event.dueDate === dateString
+  event => occursOnDate(event, dateString)
 );
 
 const tasksForDay = [
@@ -2883,8 +2890,8 @@ const tasksForDay = [
       <div class="calendar-day ${isToday ? "today" : ""}" data-calendar-date="${dateString}">
         <strong>${day}</strong>
 
-  ${tasksForDay.slice(0, 2).map(task => `
-  <div class="calendar-task ${task.done ? "done" : task.priority || ""} ${
+  ${tasksForDay.map((task, index) => `
+ <div class="calendar-task ${index >= 4 ? "calendar-extra hidden" : ""} ${task.done ? "done" : task.priority || ""} ${
   task.type === "event" ||
   task.type === "external-event"
     ? "calendar-event"
@@ -2902,22 +2909,14 @@ const tasksForDay = [
   }
 </span>
 
-    ${
-      task.type === "task"
-        ? `
-          <span class="calendar-task-people">
-            ${participantDisplay(task)}
-          </span>
-        `
-        : ""
-    }
+    
   </div>
 `).join("")}
 
 ${
-  tasksForDay.length > 2
+  tasksForDay.length > 4
     ? `<div class="calendar-more" data-calendar-date="${dateString}">
-         +${tasksForDay.length - 2} more...
+         +${tasksForDay.length - 4} more...
        </div>`
     : ""
 }
@@ -2936,7 +2935,23 @@ while (days.length < 49) {
 document.querySelectorAll(".calendar-more").forEach(link => {
   link.onclick = event => {
     event.stopPropagation();
-    showCalendarDay(link.dataset.calendarDate);
+
+    const dayCell = link.closest(".calendar-day");
+    const extras = dayCell.querySelectorAll(".calendar-extra");
+
+    const isExpanded = link.dataset.expanded === "true";
+
+    extras.forEach(item => {
+      item.classList.toggle("hidden", isExpanded);
+    });
+
+    if (isExpanded) {
+      link.textContent = `+${extras.length} more...`;
+      link.dataset.expanded = "false";
+    } else {
+      link.textContent = "Show less";
+      link.dataset.expanded = "true";
+    }
   };
 });
 }
@@ -2970,7 +2985,7 @@ function showCalendarDay(dateString) {
 );
 
 const externalItems = enabledExternalEvents().filter(
-  event => event.dueDate === dateString
+  event => occursOnDate(event, dateString)
 );
 
 const itemsForDay = [
@@ -4044,8 +4059,9 @@ console.log("Found VEVENT blocks:", eventBlocks.length);
       }
 
       const title =
-        readField("SUMMARY") ||
-        "Untitled event";
+  readField("SUMMARY") ||
+  readField("DESCRIPTION") ||
+  "Untitled event";
 
       const startDate =
         parseIcsDate(readField("DTSTART"));
