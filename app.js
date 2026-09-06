@@ -4557,8 +4557,9 @@ if (alreadyExists) {
 
     externalCalendars.push(newCalendar);
 
-    saveExternalCalendars();
-    renderExternalCalendars();
+saveExternalCalendars();
+renderExternalCalendars();
+renderCalendar();
 
     $("externalCalendarName").value = "";
     $("externalCalendarUrl").value = "";
