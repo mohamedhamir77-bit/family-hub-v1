@@ -3961,6 +3961,56 @@ function parseIcsRRule(rrule) {
 
   return rule;
 }
+function expandWeeklyRecurringEvent(event) {
+  const rule = parseIcsRRule(event.rrule);
+
+  if (!rule || rule.FREQ !== "WEEKLY") {
+    return [event];
+  }
+
+  const interval = Math.max(
+    parseInt(rule.INTERVAL || "1", 10),
+    1
+  );
+
+  const count = parseInt(rule.COUNT || "0", 10);
+
+  const until = rule.UNTIL
+    ? parseIcsDate(rule.UNTIL)
+    : addDaysToDateString(
+        new Date().toISOString().slice(0, 10),
+        548
+      );
+
+  const occurrences = [];
+  let currentDate = event.dueDate;
+  let occurrenceNumber = 0;
+
+  while (
+    currentDate &&
+    currentDate <= until &&
+    occurrenceNumber < 1000
+  ) {
+    occurrences.push({
+      ...event,
+      id: `${event.id}-${occurrenceNumber}`,
+      dueDate: currentDate
+    });
+
+    occurrenceNumber++;
+
+    if (count && occurrenceNumber >= count) {
+      break;
+    }
+
+    currentDate = addDaysToDateString(
+      currentDate,
+      7 * interval
+    );
+  }
+
+  return occurrences;
+}
 function parseIcsEvents(icsText) {
   if (!icsText) return [];
 
@@ -3974,7 +4024,7 @@ function parseIcsEvents(icsText) {
     /BEGIN:VEVENT[\s\S]*?END:VEVENT/g
   ) || [];
 console.log("Found VEVENT blocks:", eventBlocks.length);
-  return eventBlocks
+  const parsedEvents = eventBlocks
     .map((block, index) => {
       function readField(fieldName) {
         const line = block
@@ -4031,6 +4081,9 @@ type: "external-event"
       };
     })
     .filter(Boolean);
+    return parsedEvents.flatMap(
+  expandWeeklyRecurringEvent
+);
 }
 function saveExternalCalendars() {
   localStorage.setItem(
