@@ -1811,116 +1811,492 @@ $("familyEconomyCard").onclick = () => {
     panel.scrollIntoView({
       behavior: "smooth"
     });
-    $("copyFamilySummaryBtn").onclick = async () => {
+  $("copyFamilySummaryBtn").onclick = async () => {
   const today = formatDateLocal(new Date());
 
-  const dateText = new Date().toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  });
+  const dateText = new Date().toLocaleDateString(
+    "en-GB",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    }
+  );
 
   const totals = {};
 
-   pointsFromCurrentWeek().forEach(transaction => {
+  pointsFromCurrentWeek().forEach(transaction => {
     totals[transaction.memberId] =
       (totals[transaction.memberId] || 0) +
       (Number(transaction.amount) || 0);
   });
 
-  const todaysItems = nodes.filter(node =>
-    (node.type === "task" || node.type === "event") &&
+  const todaysTasks = nodes.filter(node =>
+    node.type === "task" &&
     shouldShowTaskToday(node, today)
   );
+
+  const todaysHubEvents = nodes.filter(node =>
+    node.type === "event" &&
+    occursOnDate(node, today)
+  );
+
+  const todaysExternalEvents =
+    enabledExternalEvents().filter(event =>
+      occursOnDate(event, today)
+    );
+
+  function peopleForItem(item) {
+    let ids = [];
+
+    if (item.sharedEnabled) {
+      ids = effectiveParticipantIds(item);
+    } else if (item.memberId) {
+      ids = [item.memberId];
+    }
+
+    return ids
+      .map(id => members.find(member => member.id === id))
+      .filter(Boolean)
+      .map(member =>
+        `${member.emoji || "👤"} ${member.name}`
+      )
+      .join(", ");
+  }
 
   let summary = `🏡 *FAMILY HUB SUMMARY*\n`;
   summary += `📅 ${dateText}\n\n`;
 
+  // =========================
+  // FAMILY HUB TASKS
+  // =========================
+
+  summary += `✅ *FAMILY HUB TASKS*\n\n`;
+
   members.forEach(member => {
-    const memberItems = todaysItems.filter(item => {
-      if (item.sharedEnabled) {
-        return effectiveParticipantIds(item).includes(member.id);
+    const memberTasks = todaysTasks.filter(task => {
+      if (task.sharedEnabled) {
+        return effectiveParticipantIds(task)
+          .includes(member.id);
       }
 
-      return item.memberId === member.id;
+      return task.memberId === member.id;
     });
 
-    summary += `${member.emoji || "👤"} *${member.name}*\n`;
-    summary += `⭐ ${totals[member.id] || 0} points\n`;
-    const pointMessages = pointsFromCurrentWeek()
-  .filter(transaction =>
-    transaction.memberId === member.id &&
-    (
-      transaction.type === "prayer-on-time" ||
-      transaction.type === "missed-recurring-task" ||
-      (
-        transaction.displayOnMemberCard !== false &&
-        (
-          transaction.adjustedByParent === true ||
-          transaction.type === "manual-addition" ||
-          transaction.type === "manual-deduction"
-        )
-      )
-    )
-  )
-  .slice(0, 5);
-if (pointMessages.length) {
-  summary += `📝 Manual point changes:\n`;
+    summary +=
+      `${member.emoji || "👤"} *${member.name}*\n`;
 
-  pointMessages.forEach(transaction => {
-    const amount = Number(transaction.amount) || 0;
-    const reason =
-      transaction.reason?.trim() ||
-      transaction.title ||
-      "No reason given";
+    summary +=
+  `⭐ Week total: ${totals[member.id] || 0} points\n`;
 
-    summary += `   ${amount > 0 ? "+" : ""}${amount} ⭐ — ${reason}\n`;
-  });
-}
 
-    if (!memberItems.length) {
+    if (!memberTasks.length) {
       summary += `🎉 No tasks today\n\n`;
       return;
     }
 
-    memberItems.forEach(item => {
-      const completed = item.sharedEnabled
-        ? item.completedBy?.[member.id] === true
-        : item.done === true;
+    memberTasks.forEach(task => {
+      const completed = task.sharedEnabled
+        ? task.completedBy?.[member.id] === true
+        : task.done === true;
 
       const symbol = completed ? "✅" : "⬜";
 
-      summary += `${symbol} ${item.title}`;
-      if (item.notes?.trim()) {
-  summary += `\n   💬 ${item.notes.trim()}`;
-}
+      summary += `${symbol} ${task.title}`;
 
-      if (item.type === "task") {
-        summary += ` (+${item.points ?? 1} ⭐)`;
+      if (task.points !== undefined) {
+        summary += ` (+${task.points ?? 1} ⭐)`;
       }
 
       summary += `\n`;
+
+      if (task.notes?.trim()) {
+  const noteLines = task.notes
+    .trim()
+    .split(/\r?\n/)
+    .map(line =>
+      line
+        .replace(/^>\s*/, "")
+        .trim()
+    )
+    .filter(Boolean);
+
+  noteLines.forEach(line => {
+    summary += `   • ${line}\n`;
+  });
+}
     });
 
     summary += `\n`;
   });
 
-  const familyTotal = Object.values(totals).reduce(
-    (total, points) => total + points,
+  // =========================
+  // FAMILY HUB EVENTS
+  // =========================
+
+  summary += `🏠 *FAMILY HUB EVENTS*\n`;
+
+  if (!todaysHubEvents.length) {
+    summary += `No Family Hub events today\n`;
+  } else {
+    todaysHubEvents.forEach(event => {
+      summary += `📅 ${event.title}\n`;
+
+      const people = peopleForItem(event);
+
+      if (people) {
+        summary += `   👥 ${people}\n`;
+      }
+
+      if (event.notes?.trim()) {
+        summary +=
+          `   💬 ${event.notes.trim()}\n`;
+      }
+    });
+  }
+
+  summary += `\n`;
+
+  // =========================
+  // EXTERNAL CALENDARS
+  // =========================
+
+  summary += `🌐 *EXTERNAL CALENDARS*\n`;
+
+  if (!todaysExternalEvents.length) {
+    summary += `No external calendar events today\n`;
+  } else {
+    const calendarGroups = new Map();
+
+    todaysExternalEvents.forEach(event => {
+      const calendarName =
+        event.externalCalendarName ||
+        "External calendar";
+
+      if (!calendarGroups.has(calendarName)) {
+        calendarGroups.set(calendarName, []);
+      }
+
+      calendarGroups
+        .get(calendarName)
+        .push(event);
+    });
+
+    calendarGroups.forEach(
+      (events, calendarName) => {
+        const calendarSymbol =
+          events[0]?.calendarSymbol || "📅";
+
+        summary +=
+          `\n${calendarSymbol} *${calendarName}*\n`;
+
+        events
+          .sort((a, b) =>
+            (a.startTime || "")
+              .localeCompare(b.startTime || "")
+          )
+          .forEach(event => {
+            if (event.startTime) {
+  summary += `• ${event.startTime}`;
+
+  if (event.endTime) {
+    summary += `–${event.endTime}`;
+  }
+
+  summary += ` — ${event.title}\n`;
+} else {
+  summary += `• All day — ${event.title}\n`;
+}
+
+            if (event.location?.trim()) {
+              summary +=
+                `📍 ${event.location.trim()}\n`;
+            }
+          });
+      }
+    );
+  }
+// =========================
+// COMING UP — 3 MONTHS
+// =========================
+
+const todayDate =
+  new Date(`${today}T00:00:00`);
+
+// 7 days from today
+const next7Date =
+  new Date(todayDate);
+
+next7Date.setDate(
+  next7Date.getDate() + 7
+);
+
+const next7End =
+  formatDateLocal(next7Date);
+
+// End of this month
+const monthEndDate =
+  new Date(
+    todayDate.getFullYear(),
+    todayDate.getMonth() + 1,
     0
   );
 
-  summary += `📊 *FAMILY TOTAL*\n`;
-  summary += `⭐ ${familyTotal} points\n`;
-  summary += `📌 ${todaysItems.length} items today`;
-  summary += `\n\n🌐 *Open Family Hub:*\n`;
-summary += `https://family-hub-9b455.web.app/`;
+const monthEnd =
+  formatDateLocal(monthEndDate);
+
+// End of the next 2 months
+// Example: September -> end of November
+const threeMonthEndDate =
+  new Date(
+    todayDate.getFullYear(),
+    todayDate.getMonth() + 3,
+    0
+  );
+
+const threeMonthEnd =
+  formatDateLocal(threeMonthEndDate);
+
+// Family Hub tasks + events
+const upcomingHubItems = nodes
+  .filter(node =>
+    (
+      node.type === "task" ||
+      node.type === "event"
+    ) &&
+    node.dueDate &&
+    node.dueDate > today &&
+    node.dueDate <= threeMonthEnd &&
+    (
+      node.type === "event" ||
+      !node.done
+    )
+  )
+  .map(node => ({
+    ...node,
+    upcomingSource: "hub"
+  }));
+
+// Google Family, Hujjat Live, etc.
+const upcomingExternalItems =
+  enabledExternalEvents()
+    .filter(event =>
+      event.dueDate &&
+      event.dueDate > today &&
+      event.dueDate <= threeMonthEnd
+    )
+    .map(event => ({
+      ...event,
+      upcomingSource: "external"
+    }));
+
+// Combine everything chronologically
+const allUpcoming = [
+  ...upcomingHubItems,
+  ...upcomingExternalItems
+].sort((a, b) => {
+  const dateCompare =
+    a.dueDate.localeCompare(b.dueDate);
+
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+
+  return (a.startTime || "")
+    .localeCompare(b.startTime || "");
+});
+
+// First 7 days
+const next7Items = allUpcoming
+  .filter(item =>
+    item.dueDate <= next7End
+  )
+  .slice(0, 5);
+
+// Rest of this month
+const laterThisMonth = allUpcoming
+  .filter(item =>
+    item.dueDate > next7End &&
+    item.dueDate <= monthEnd
+  )
+  .slice(0, 5);
+
+// Following 2 months
+const nextMonthStartDate =
+  new Date(
+    todayDate.getFullYear(),
+    todayDate.getMonth() + 1,
+    1
+  );
+
+const nextMonthEndDate =
+  new Date(
+    todayDate.getFullYear(),
+    todayDate.getMonth() + 2,
+    0
+  );
+
+const nextMonthStart =
+  formatDateLocal(nextMonthStartDate);
+
+const nextMonthEnd =
+  formatDateLocal(nextMonthEndDate);
+
+const followingMonthStartDate =
+  new Date(
+    todayDate.getFullYear(),
+    todayDate.getMonth() + 2,
+    1
+  );
+
+const followingMonthStart =
+  formatDateLocal(
+    followingMonthStartDate
+  );
+
+const nextMonthItems = allUpcoming
+  .filter(item =>
+    item.dueDate >= nextMonthStart &&
+    item.dueDate <= nextMonthEnd
+  )
+  .slice(0, 5);
+
+const followingMonthItems = allUpcoming
+  .filter(item =>
+    item.dueDate >= followingMonthStart &&
+    item.dueDate <= threeMonthEnd
+  )
+  .slice(0, 5);
+  function addComingUpItem(item) {
+  const date =
+    new Date(`${item.dueDate}T00:00:00`);
+
+  const dateLabel =
+    date.toLocaleDateString(
+      "en-GB",
+      {
+        weekday: "short",
+        day: "numeric",
+        month: "short"
+      }
+    );
+
+  let icon = "📅";
+  let source = "";
+
+  if (item.upcomingSource === "external") {
+    icon =
+      item.calendarSymbol || "📅";
+
+    source =
+      item.externalCalendarName || "";
+  } else if (item.type === "task") {
+    icon = "✅";
+
+    const people =
+      peopleForItem(item);
+
+    source = people || "";
+  } else {
+    icon = "🏠";
+
+    const people =
+      peopleForItem(item);
+
+    source = people || "";
+  }
+
+  summary +=
+    `• ${dateLabel} ${icon} ${item.title}`;
+
+  if (item.startTime) {
+    summary += ` (${item.startTime}`;
+
+    if (item.endTime) {
+      summary += `–${item.endTime}`;
+    }
+
+    summary += `)`;
+  }
+
+  if (source) {
+    summary += ` — ${source}`;
+  }
+
+  summary += `\n`;
+}
+
+const nextMonthLabel =
+  nextMonthStartDate.toLocaleDateString(
+    "en-GB",
+    { month: "long" }
+  );
+
+const followingMonthLabel =
+  followingMonthStartDate.toLocaleDateString(
+    "en-GB",
+    { month: "long" }
+  );
+
+if (
+  next7Items.length ||
+  laterThisMonth.length ||
+  nextMonthItems.length ||
+  followingMonthItems.length
+) {
+  summary +=
+    `\n\n🔮 *COMING UP — 3 MONTHS*\n`;
+
+  if (next7Items.length) {
+    summary +=
+      `\n*Next 7 days*\n`;
+
+    next7Items.forEach(
+      addComingUpItem
+    );
+  }
+
+  if (laterThisMonth.length) {
+    summary +=
+      `\n*Later this month*\n`;
+
+    laterThisMonth.forEach(
+      addComingUpItem
+    );
+  }
+
+  if (nextMonthItems.length) {
+    summary +=
+      `\n*${nextMonthLabel}*\n`;
+
+    nextMonthItems.forEach(
+      addComingUpItem
+    );
+  }
+
+  if (followingMonthItems.length) {
+    summary +=
+      `\n*${followingMonthLabel}*\n`;
+
+    followingMonthItems.forEach(
+      addComingUpItem
+    );
+  }
+}
+  
+  summary +=
+    `\n🌐 *Open Family Hub:*\n`;
+  summary +=
+    `https://family-hub-9b455.web.app/`;
 
   await navigator.clipboard.writeText(summary);
 
-  alert("Family summary copied. You can now paste it into WhatsApp.");
+  alert(
+    "Family summary copied. You can now paste it into WhatsApp."
+  );
 };
+
   }
 };
 
