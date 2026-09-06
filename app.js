@@ -4684,7 +4684,30 @@ async function refreshFamilyGoogleCalendar() {
     );
   }
 }
+const refreshCalendarsBtn =
+  $("refreshCalendarsBtn");
 
+if (refreshCalendarsBtn) {
+  refreshCalendarsBtn.onclick = async () => {
+    refreshCalendarsBtn.disabled = true;
+    refreshCalendarsBtn.textContent =
+      "Refreshing…";
+
+    await Promise.all([
+      refreshFamilyGoogleCalendar(),
+      refreshUrlCalendars()
+    ]);
+
+    refreshCalendarsBtn.textContent =
+      "✓ Refreshed";
+
+    setTimeout(() => {
+      refreshCalendarsBtn.textContent =
+        "Refresh all";
+      refreshCalendarsBtn.disabled = false;
+    }, 1200);
+  };
+}
 refreshFamilyGoogleCalendar();
 // Refresh Google Family calendar every 5 minutes
 setInterval(
