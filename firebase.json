@@ -14,7 +14,7 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "**/*.html",
         "headers": [
           {
             "key": "Cache-Control",
@@ -23,7 +23,25 @@
         ]
       },
       {
-        "source": "/version.json",
+        "source": "**/*.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "**/*.css",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "**/*.json",
         "headers": [
           {
             "key": "Cache-Control",

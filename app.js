@@ -5168,9 +5168,12 @@ async function refreshUrlCalendars() {
 }
 async function refreshFamilyGoogleCalendar() {
   try {
-    const response = await fetch(
-      FAMILY_CALENDAR_FUNCTION_URL
-    );
+   const response = await fetch(
+  `${FAMILY_CALENDAR_FUNCTION_URL}?t=${Date.now()}`,
+  {
+    cache: "no-store"
+  }
+);
 
     if (!response.ok) {
       throw new Error(

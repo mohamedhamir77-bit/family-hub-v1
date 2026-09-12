@@ -1598,6 +1598,36 @@ textarea {
   color: white;
 }
 
+.calendar-task.external-calendar-blue {
+  background: #2563eb;
+  color: white;
+}
+
+.calendar-task.external-calendar-green {
+  background: #16a34a;
+  color: white;
+}
+
+.calendar-task.external-calendar-orange {
+  background: #ea580c;
+  color: white;
+}
+
+.calendar-task.external-calendar-red {
+  background: #dc2626;
+  color: white;
+}
+
+.calendar-task.external-calendar-pink {
+  background: #db2777;
+  color: white;
+}
+
+.calendar-task.external-calendar-teal {
+  background: #0f766e;
+  color: white;
+}
+
 .calendar-colour-dot {
   display: inline-block;
   width: 8px;
