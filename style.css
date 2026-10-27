@@ -2480,3 +2480,28 @@ textarea {
 .calendar-mini-band-teal {
   background: #0d9488;
 }
+/* ===========================
+   Keep calendar hover cards above following panels
+=========================== */
+
+#calendarPanel {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
+}
+
+#calendarYearGrid,
+.calendar-year-month,
+.calendar-mini-days,
+.calendar-mini-day {
+  overflow: visible;
+}
+
+.calendar-year-hover-card {
+  z-index: 1000;
+}
+
+#pendingTasksPanel {
+  position: relative;
+  z-index: 1;
+}
