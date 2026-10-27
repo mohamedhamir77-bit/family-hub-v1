@@ -1266,7 +1266,10 @@ textarea {
 }
 
 .prayer-location-result strong,
- color: #111;
+.prayer-location-result span {
+  color: #111;
+}
+
 .prayer-location-result span {
   display: block;
   margin-top: 4px;
@@ -1775,8 +1778,9 @@ textarea {
   text-overflow: ellipsis;
 
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+-webkit-line-clamp: 3;
+line-clamp: 3;
+-webkit-box-orient: vertical;
 
   line-height: 1.15;
 }
