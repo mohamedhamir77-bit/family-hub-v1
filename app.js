@@ -3744,12 +3744,12 @@ const dots = dotItems
                         : "All day";
 
                   const sourceText =
-                    item.type === "external-event"
-                      ? item.externalCalendarName ||
-                        "External calendar"
-                      : item.type === "task"
-                        ? "Family Hub task"
-                        : "Family Hub";
+  item.type === "external-event"
+    ? item.externalCalendarName ||
+      "External calendar"
+    : item.type === "task"
+      ? `Family Hub task • ${participantDisplay(item)}`
+      : "Family Hub";
 
                   return `
                     <div class="calendar-year-hover-event">
@@ -4235,15 +4235,15 @@ const dots = dotItems
                             ? "Any time"
                             : "All day";
 
-                      const sourceText =
-                        item.type ===
-                          "external-event"
-                          ? item.externalCalendarName ||
-                            "External calendar"
-                          : item.type ===
-                              "task"
-                            ? "Family Hub task"
-                            : "Family Hub";
+                     const sourceText =
+  item.type ===
+    "external-event"
+    ? item.externalCalendarName ||
+      "External calendar"
+    : item.type ===
+        "task"
+      ? `Family Hub task • ${participantDisplay(item)}`
+      : "Family Hub";
 
                       return `
                         <div
