@@ -394,11 +394,47 @@
   </button>
 
   <button
+    id="calendarRangeViewBtn"
+    type="button"
+    class="calendar-view-btn ghost"
+  >
+    Range
+  </button>
+
+  <button
     id="calendarTodayBtn"
     type="button"
     class="calendar-today-btn ghost"
   >
     Today
+  </button>
+</div>
+
+<div
+  id="calendarRangeControls"
+  class="calendar-range-controls hidden"
+>
+  <label>
+    From
+    <input
+      id="calendarRangeStart"
+      type="month"
+    >
+  </label>
+
+  <label>
+    To
+    <input
+      id="calendarRangeEnd"
+      type="month"
+    >
+  </label>
+
+  <button
+    id="calendarApplyRangeBtn"
+    type="button"
+  >
+    View range
   </button>
 </div>
   <div class="calendar-header">

@@ -3182,6 +3182,73 @@ function occursOnDate(item, dateString) {
 
   return item.dueDate === dateString;
 }
+
+function isMultiDayCalendarEvent(item) {
+  return (
+    (
+      item.type === "event" ||
+      item.type === "external-event"
+    ) &&
+    item.dueDate &&
+    item.endDate &&
+    item.endDate > item.dueDate
+  );
+}
+
+function getCalendarBandInfo(item, dateString) {
+  if (
+    !isMultiDayCalendarEvent(item) ||
+    !occursOnDate(item, dateString)
+  ) {
+    return null;
+  }
+
+  const currentDate =
+    new Date(`${dateString}T00:00:00`);
+
+  const previousDate =
+    new Date(currentDate);
+
+  previousDate.setDate(
+    previousDate.getDate() - 1
+  );
+
+  const nextDate =
+    new Date(currentDate);
+
+  nextDate.setDate(
+    nextDate.getDate() + 1
+  );
+
+  const previousDateString =
+    formatDateLocal(previousDate);
+
+  const nextDateString =
+    formatDateLocal(nextDate);
+
+  const startsHere =
+    currentDate.getDate() === 1 ||
+    currentDate.getDay() === 0 ||
+    !occursOnDate(
+      item,
+      previousDateString
+    );
+
+  const endsHere =
+    nextDate.getMonth() !==
+      currentDate.getMonth() ||
+    currentDate.getDay() === 6 ||
+    !occursOnDate(
+      item,
+      nextDateString
+    );
+
+  return {
+    startsHere,
+    endsHere,
+    showLabel: startsHere
+  };
+}
 function shouldShowTaskToday(item, dateString) {
   if (item.type !== "task") {
     return occursOnDate(item, dateString);
@@ -3510,6 +3577,14 @@ function renderYearCalendar() {
     "S"
   ];
 
+  const escapeHoverText = value =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
   const months = [];
 
   for (let month = 0; month < 12; month++) {
@@ -3545,12 +3620,64 @@ function renderYearCalendar() {
       const isToday =
         dateString === todayString;
 
-      const dots = itemsForDay
+const bandItems = itemsForDay
+  .filter(item =>
+    isMultiDayCalendarEvent(item)
+  )
+  .slice(0, 2);
+
+const dotItems = itemsForDay
+  .filter(item =>
+    !isMultiDayCalendarEvent(item)
+  );
+
+const bands = bandItems
+  .map(item => {
+    const bandInfo =
+      getCalendarBandInfo(
+        item,
+        dateString
+      );
+
+    if (!bandInfo) return "";
+
+    const colour =
+      item.type === "external-event" &&
+      CALENDAR_COLOURS.includes(
+        item.calendarColor
+      )
+        ? item.calendarColor
+        : "blue";
+
+    return `
+      <div
+        class="
+          calendar-mini-band
+          calendar-mini-band-${colour}
+          ${
+            bandInfo.startsHere
+              ? "calendar-mini-band-start"
+              : ""
+          }
+          ${
+            bandInfo.endsHere
+              ? "calendar-mini-band-end"
+              : ""
+          }
+        "
+      ></div>
+    `;
+  })
+  .join("");
+
+const dots = dotItems
   .slice(0, 3)
   .map(item => {
     const colour =
       item.type === "external-event" &&
-      CALENDAR_COLOURS.includes(item.calendarColor)
+      CALENDAR_COLOURS.includes(
+        item.calendarColor
+      )
         ? item.calendarColor
         : "blue";
 
@@ -3565,18 +3692,131 @@ function renderYearCalendar() {
   })
   .join("");
 
-      days.push(`
-        <div
-          class="calendar-mini-day ${isToday ? "today" : ""}"
-          data-year-date="${dateString}"
-        >
-          <span>${day}</span>
+      const hoverDateText =
+        new Date(year, month, day).toLocaleDateString(
+          "en-GB",
+          {
+            weekday: "long",
+            day: "numeric",
+            month: "long"
+          }
+        );
 
-          <div class="calendar-mini-event-dots">
-            ${dots}
-          </div>
-        </div>
-      `);
+      const hoverItems =
+        [...itemsForDay].sort((a, b) => {
+          const aTime = a.startTime || "99:99";
+          const bTime = b.startTime || "99:99";
+
+          return aTime.localeCompare(bTime);
+        });
+
+      const hoverCard = hoverItems.length
+        ? `
+            <div class="calendar-year-hover-card">
+
+              <div class="calendar-year-hover-header">
+                <strong>
+                  ${escapeHoverText(hoverDateText)}
+                </strong>
+
+                <span>
+                  ${hoverItems.length}
+                  ${hoverItems.length === 1 ? "item" : "items"}
+                </span>
+              </div>
+
+              <div class="calendar-year-hover-events">
+
+                ${hoverItems.map(item => {
+                  const colour =
+                    item.type === "external-event" &&
+                    CALENDAR_COLOURS.includes(item.calendarColor)
+                      ? item.calendarColor
+                      : "blue";
+
+                  const timeText =
+                    item.startTime
+                      ? item.endTime
+                        ? `${item.startTime}–${item.endTime}`
+                        : item.startTime
+                      : item.type === "task"
+                        ? "Any time"
+                        : "All day";
+
+                  const sourceText =
+                    item.type === "external-event"
+                      ? item.externalCalendarName ||
+                        "External calendar"
+                      : item.type === "task"
+                        ? "Family Hub task"
+                        : "Family Hub";
+
+                  return `
+                    <div class="calendar-year-hover-event">
+
+                      <span
+                        class="
+                          calendar-year-hover-dot
+                          calendar-year-hover-dot-${colour}
+                        "
+                      ></span>
+
+                      <div class="calendar-year-hover-event-text">
+
+                        <div class="calendar-year-hover-time">
+                          ${escapeHoverText(timeText)}
+                        </div>
+
+                        <strong class="calendar-year-hover-title">
+                          ${escapeHoverText(
+                            item.title || "Untitled"
+                          )}
+                        </strong>
+
+                        <div class="calendar-year-hover-source">
+                          ${escapeHoverText(sourceText)}
+                        </div>
+
+                      </div>
+
+                    </div>
+                  `;
+                }).join("")}
+
+              </div>
+
+            </div>
+          `
+        : "";
+
+      days.push(`
+  <div
+    class="
+      calendar-mini-day
+      ${isToday ? "today" : ""}
+      ${bands ? "has-calendar-band" : ""}
+    "
+    data-year-date="${dateString}"
+  >
+    <span>${day}</span>
+
+    ${
+      bands
+        ? `
+            <div class="calendar-mini-bands">
+              ${bands}
+            </div>
+          `
+        : ""
+    }
+
+    <div class="calendar-mini-event-dots">
+      ${dots}
+    </div>
+
+    ${hoverCard}
+  </div>
+`);
     }
 
     months.push(`
@@ -3635,12 +3875,559 @@ function renderYearCalendar() {
       };
     });
 }
+function renderRangeCalendar() {
+  const yearGrid = $("calendarYearGrid");
+
+  const startInput = $("calendarRangeStart");
+  const endInput = $("calendarRangeEnd");
+
+  const today = new Date();
+
+  if (!startInput.value) {
+    startInput.value =
+      `${today.getFullYear()}-${String(
+        today.getMonth() + 1
+      ).padStart(2, "0")}`;
+  }
+
+  if (!endInput.value) {
+    const defaultEnd =
+      new Date(
+        today.getFullYear(),
+        today.getMonth() + 6,
+        1
+      );
+
+    endInput.value =
+      `${defaultEnd.getFullYear()}-${String(
+        defaultEnd.getMonth() + 1
+      ).padStart(2, "0")}`;
+  }
+
+  const [startYear, startMonthNumber] =
+    startInput.value.split("-").map(Number);
+
+  const [endYear, endMonthNumber] =
+    endInput.value.split("-").map(Number);
+
+  const startDate =
+    new Date(
+      startYear,
+      startMonthNumber - 1,
+      1
+    );
+
+  const endDate =
+    new Date(
+      endYear,
+      endMonthNumber - 1,
+      1
+    );
+
+  if (endDate < startDate) {
+    alert(
+      "The end month must be after the start month."
+    );
+
+    return;
+  }
+
+  const monthCount =
+    (
+      (endDate.getFullYear() -
+        startDate.getFullYear()) *
+      12
+    ) +
+    endDate.getMonth() -
+    startDate.getMonth() +
+    1;
+
+  if (monthCount > 24) {
+    alert(
+      "Please choose a range of 24 months or less."
+    );
+
+    return;
+  }
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+
+  const weekdays = [
+    "S",
+    "M",
+    "T",
+    "W",
+    "T",
+    "F",
+    "S"
+  ];
+
+  const escapeHoverText = value =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const rangeTitleStart =
+    startDate.toLocaleDateString(
+      "en-GB",
+      {
+        month: "long",
+        year: "numeric"
+      }
+    );
+
+  const rangeTitleEnd =
+    endDate.toLocaleDateString(
+      "en-GB",
+      {
+        month: "long",
+        year: "numeric"
+      }
+    );
+
+  $("calendarTitle").textContent =
+    `${rangeTitleStart} – ${rangeTitleEnd}`;
+
+  const todayString =
+    formatDateLocal(new Date());
+
+  const months = [];
+
+  let currentDate =
+    new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      1
+    );
+
+  while (currentDate <= endDate) {
+    const year =
+      currentDate.getFullYear();
+
+    const month =
+      currentDate.getMonth();
+
+    const firstDay =
+      new Date(year, month, 1);
+
+    const lastDay =
+      new Date(year, month + 1, 0);
+
+    const days = [];
+
+    for (
+      let i = 0;
+      i < firstDay.getDay();
+      i++
+    ) {
+      days.push(`
+        <div class="calendar-mini-day empty"></div>
+      `);
+    }
+
+    for (
+      let day = 1;
+      day <= lastDay.getDate();
+      day++
+    ) {
+      const dateString =
+        `${year}-${String(
+          month + 1
+        ).padStart(2, "0")}-${String(
+          day
+        ).padStart(2, "0")}`;
+
+      const familyHubItems =
+        nodes.filter(node =>
+          (
+            node.type === "task" ||
+            node.type === "event"
+          ) &&
+          occursOnDate(
+            node,
+            dateString
+          )
+        );
+
+      const externalItems =
+        enabledExternalEvents().filter(
+          event =>
+            occursOnDate(
+              event,
+              dateString
+            )
+        );
+
+      const itemsForDay = [
+        ...familyHubItems,
+        ...externalItems
+      ];
+
+      const isToday =
+        dateString === todayString;
+
+     const bandItems = itemsForDay
+  .filter(item =>
+    isMultiDayCalendarEvent(item)
+  )
+  .slice(0, 2);
+
+const dotItems = itemsForDay
+  .filter(item =>
+    !isMultiDayCalendarEvent(item)
+  );
+
+const bands = bandItems
+  .map(item => {
+    const bandInfo =
+      getCalendarBandInfo(
+        item,
+        dateString
+      );
+
+    if (!bandInfo) return "";
+
+    const colour =
+      item.type === "external-event" &&
+      CALENDAR_COLOURS.includes(
+        item.calendarColor
+      )
+        ? item.calendarColor
+        : "blue";
+
+    return `
+      <div
+        class="
+          calendar-mini-band
+          calendar-mini-band-${colour}
+          ${
+            bandInfo.startsHere
+              ? "calendar-mini-band-start"
+              : ""
+          }
+          ${
+            bandInfo.endsHere
+              ? "calendar-mini-band-end"
+              : ""
+          }
+        "
+      ></div>
+    `;
+  })
+  .join("");
+
+const dots = dotItems
+  .slice(0, 3)
+  .map(item => {
+    const colour =
+      item.type === "external-event" &&
+      CALENDAR_COLOURS.includes(
+        item.calendarColor
+      )
+        ? item.calendarColor
+        : "blue";
+
+    return `
+      <span
+        class="
+          calendar-mini-event-dot
+          calendar-mini-event-dot-${colour}
+        "
+      ></span>
+    `;
+  })
+  .join("");
+
+      const hoverDateText =
+        new Date(
+          year,
+          month,
+          day
+        ).toLocaleDateString(
+          "en-GB",
+          {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+          }
+        );
+
+      const hoverItems =
+        [...itemsForDay].sort(
+          (a, b) => {
+            const aTime =
+              a.startTime || "99:99";
+
+            const bTime =
+              b.startTime || "99:99";
+
+            return aTime.localeCompare(
+              bTime
+            );
+          }
+        );
+
+      const hoverCard =
+        hoverItems.length
+          ? `
+              <div
+                class="calendar-year-hover-card"
+              >
+
+                <div
+                  class="calendar-year-hover-header"
+                >
+                  <strong>
+                    ${escapeHoverText(
+                      hoverDateText
+                    )}
+                  </strong>
+
+                  <span>
+                    ${hoverItems.length}
+                    ${
+                      hoverItems.length === 1
+                        ? "item"
+                        : "items"
+                    }
+                  </span>
+                </div>
+
+                <div
+                  class="calendar-year-hover-events"
+                >
+
+                  ${hoverItems
+                    .map(item => {
+                      const colour =
+                        item.type ===
+                          "external-event" &&
+                        CALENDAR_COLOURS.includes(
+                          item.calendarColor
+                        )
+                          ? item.calendarColor
+                          : "blue";
+
+                      const timeText =
+                        item.startTime
+                          ? item.endTime
+                            ? `${item.startTime}–${item.endTime}`
+                            : item.startTime
+                          : item.type ===
+                              "task"
+                            ? "Any time"
+                            : "All day";
+
+                      const sourceText =
+                        item.type ===
+                          "external-event"
+                          ? item.externalCalendarName ||
+                            "External calendar"
+                          : item.type ===
+                              "task"
+                            ? "Family Hub task"
+                            : "Family Hub";
+
+                      return `
+                        <div
+                          class="calendar-year-hover-event"
+                        >
+
+                          <span
+                            class="
+                              calendar-year-hover-dot
+                              calendar-year-hover-dot-${colour}
+                            "
+                          ></span>
+
+                          <div
+                            class="calendar-year-hover-event-text"
+                          >
+
+                            <div
+                              class="calendar-year-hover-time"
+                            >
+                              ${escapeHoverText(
+                                timeText
+                              )}
+                            </div>
+
+                            <strong
+                              class="calendar-year-hover-title"
+                            >
+                              ${escapeHoverText(
+                                item.title ||
+                                "Untitled"
+                              )}
+                            </strong>
+
+                            <div
+                              class="calendar-year-hover-source"
+                            >
+                              ${escapeHoverText(
+                                sourceText
+                              )}
+                            </div>
+
+                          </div>
+
+                        </div>
+                      `;
+                    })
+                    .join("")}
+
+                </div>
+
+              </div>
+            `
+          : "";
+
+      days.push(`
+  <div
+    class="
+      calendar-mini-day
+      ${isToday ? "today" : ""}
+      ${bands ? "has-calendar-band" : ""}
+    "
+    data-range-date="${dateString}"
+  >
+    <span>${day}</span>
+
+    ${
+      bands
+        ? `
+            <div class="calendar-mini-bands">
+              ${bands}
+            </div>
+          `
+        : ""
+    }
+
+    <div
+      class="calendar-mini-event-dots"
+    >
+      ${dots}
+    </div>
+
+    ${hoverCard}
+
+  </div>
+`);
+    }
+
+    months.push(`
+      <div class="calendar-year-month">
+
+        <button
+          type="button"
+          class="calendar-year-month-title"
+          data-range-year="${year}"
+          data-range-month="${month}"
+        >
+          ${monthNames[month]} ${year}
+        </button>
+
+        <div
+          class="calendar-mini-weekdays"
+        >
+          ${weekdays
+            .map(
+              weekday => `
+                <div
+                  class="calendar-mini-weekday"
+                >
+                  ${weekday}
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+
+        <div
+          class="calendar-mini-days"
+        >
+          ${days.join("")}
+        </div>
+
+      </div>
+    `);
+
+    currentDate.setMonth(
+      currentDate.getMonth() + 1
+    );
+  }
+
+  yearGrid.innerHTML =
+    months.join("");
+
+  document
+    .querySelectorAll(
+      "[data-range-year]"
+    )
+    .forEach(button => {
+      button.onclick = () => {
+        calendarDate =
+          new Date(
+            Number(
+              button.dataset.rangeYear
+            ),
+            Number(
+              button.dataset.rangeMonth
+            ),
+            1
+          );
+
+        setCalendarView("month");
+      };
+    });
+
+  document
+    .querySelectorAll(
+      "[data-range-date]"
+    )
+    .forEach(day => {
+      day.onclick = () => {
+        const dateString =
+          day.dataset.rangeDate;
+
+        calendarDate =
+          new Date(
+            `${dateString}T00:00:00`
+          );
+
+        setCalendarView("day");
+
+        showCalendarDay(
+          dateString
+        );
+      };
+    });
+}
 function setCalendarView(view) {
   calendarView = view;
 
   const monthGrid = $("calendarGrid");
   const yearGrid = $("calendarYearGrid");
   const dayPanel = $("calendarDayPanel");
+  const rangeControls =
+    $("calendarRangeControls");
 
   monthGrid.classList.toggle(
     "hidden",
@@ -3649,7 +4436,8 @@ function setCalendarView(view) {
 
   yearGrid.classList.toggle(
     "hidden",
-    view !== "year"
+    view !== "year" &&
+    view !== "range"
   );
 
   dayPanel.classList.toggle(
@@ -3657,15 +4445,22 @@ function setCalendarView(view) {
     view !== "day"
   );
 
+  rangeControls.classList.toggle(
+    "hidden",
+    view !== "range"
+  );
+
   const buttons = [
     ["calendarYearViewBtn", "year"],
     ["calendarMonthViewBtn", "month"],
-    ["calendarDayViewBtn", "day"]
+    ["calendarDayViewBtn", "day"],
+    ["calendarRangeViewBtn", "range"]
   ];
 
   buttons.forEach(([id, buttonView]) => {
     const button = $(id);
-    const isActive = buttonView === view;
+    const isActive =
+      buttonView === view;
 
     button.classList.toggle(
       "active",
@@ -3680,6 +4475,11 @@ function setCalendarView(view) {
 
   if (view === "year") {
     renderYearCalendar();
+    return;
+  }
+
+  if (view === "range") {
+    renderRangeCalendar();
     return;
   }
 
@@ -3706,6 +4506,14 @@ $("calendarMonthViewBtn").onclick = () => {
 
 $("calendarDayViewBtn").onclick = () => {
   setCalendarView("day");
+};
+
+$("calendarRangeViewBtn").onclick = () => {
+  setCalendarView("range");
+};
+
+$("calendarApplyRangeBtn").onclick = () => {
+  renderRangeCalendar();
 };
 
 $("calendarTodayBtn").onclick = () => {
