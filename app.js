@@ -3771,131 +3771,248 @@ function showCalendarDay(dateString) {
   });
 
   const familyHubItems = nodes.filter(node =>
-  (node.type === "task" || node.type === "event") &&
-  occursOnDate(node, dateString)
-);
+    (node.type === "task" || node.type === "event") &&
+    occursOnDate(node, dateString)
+  );
 
-const externalItems = enabledExternalEvents().filter(
-  event => occursOnDate(event, dateString)
-);
+  const externalItems = enabledExternalEvents().filter(
+    event => occursOnDate(event, dateString)
+  );
 
-const itemsForDay = [
-  ...familyHubItems,
-  ...externalItems
-];
+  const itemsForDay = [
+    ...familyHubItems,
+    ...externalItems
+  ].sort((a, b) => {
+    const aTime = a.startTime || "99:99";
+    const bTime = b.startTime || "99:99";
+
+    return aTime.localeCompare(bTime);
+  });
 
   if (!itemsForDay.length) {
-    taskList.innerHTML = `<p>No tasks or events due on this day.</p>`;
+    taskList.innerHTML = `
+      <div class="calendar-agenda-empty">
+        <span>📅</span>
+        <p>Nothing planned for this day.</p>
+      </div>
+    `;
+
     panel.classList.remove("hidden");
     panel.scrollIntoView({ behavior: "smooth" });
     return;
   }
 
   taskList.innerHTML = itemsForDay.map(item => {
-    
+    const isExternal =
+      item.type === "external-event";
+
+    const colour =
+      isExternal &&
+      CALENDAR_COLOURS.includes(item.calendarColor)
+        ? item.calendarColor
+        : "blue";
+
+    const timeText =
+      item.startTime
+        ? item.endTime
+          ? `${item.startTime}<br><small>${item.endTime}</small>`
+          : item.startTime
+        : item.type === "task"
+        ? `<span class="calendar-agenda-anytime">Any time</span>`
+        : `<span class="calendar-agenda-anytime">All day</span>`;
+
+    const icon =
+      isExternal
+        ? item.calendarSymbol || "📅"
+        : item.type === "event"
+        ? "📅"
+        : item.done
+        ? "✅"
+        : "📌";
+
+    const sourceText =
+      isExternal
+        ? item.externalCalendarName || "External calendar"
+        : item.type === "task" &&
+          (item.sharedEnabled || item.rotationEnabled)
+        ? `Currently due: ${participantDisplay(item)}`
+        : participantDisplay(item);
 
     return `
-      <div class="calendar-day-task" data-calendar-task-id="${item.id}">
-        <strong>
-          ${
-            item.type === "event" ||
-item.type === "external-event"
-  ? "📅"
-              : item.done
-              ? "✅"
-              : item.priority === "high"
-              ? "🔴"
-              : item.priority === "medium"
-              ? "🟡"
-              : item.priority === "low"
-              ? "🟢"
-              : "📌"
-          }
-          ${item.title}
-        </strong>
+      <div class="calendar-agenda-row">
 
-        <div class="meta-row">
-          <span class="badge">
-  ${
-    item.type === "external-event"
-      ? `📅 ${item.externalCalendarName || "External calendar"}`
-      : item.type === "task" &&
-        (item.sharedEnabled || item.rotationEnabled)
-      ? `👥 Currently due: ${participantDisplay(item)}`
-      : participantDisplay(item)
-  }
-</span>
-
-          ${
-            item.repeat && item.repeat !== "none"
-              ? `<span class="badge">🔁 ${item.repeat}</span>`
-              : ""
-          }
-
-          ${
-            item.rotationEnabled
-              ? `<span class="badge">🔄 Rotating</span>`
-              : ""
-          }
+        <div class="calendar-agenda-time">
+          ${timeText}
         </div>
+
+        <div
+          class="
+            calendar-agenda-card
+            calendar-agenda-${colour}
+          "
+          data-calendar-agenda-id="${encodeURIComponent(item.id)}"
+          data-calendar-agenda-type="${isExternal ? "external" : "family"}"
+          ${
+            isExternal
+              ? `data-calendar-agenda-calendar="${encodeURIComponent(
+                  item.externalCalendarId || ""
+                )}"`
+              : ""
+          }
+        >
+
+          <div class="calendar-agenda-title">
+            <span>${icon}</span>
+            <strong>${item.title}</strong>
+          </div>
+
+          <div class="calendar-agenda-source">
+            ${sourceText}
+          </div>
+
+          ${
+            item.location
+              ? `
+                <div class="calendar-agenda-location">
+                  📍 ${item.location}
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+
       </div>
     `;
   }).join("");
 
-  document.querySelectorAll("[data-calendar-task-id]").forEach(card => {
-    card.onclick = () => {
-      const item = nodes.find(node => node.id === card.dataset.calendarTaskId);
-      if (!item) return;
+  document
+    .querySelectorAll("[data-calendar-agenda-id]")
+    .forEach(card => {
+      card.onclick = () => {
+        const itemId =
+          decodeURIComponent(
+            card.dataset.calendarAgendaId
+          );
 
-      selectedMemberId = item.memberId;
-      selectedNode = item;
-      currentParentId = item.parentId || null;
+        if (
+          card.dataset.calendarAgendaType ===
+          "external"
+        ) {
+          const calendarId =
+            decodeURIComponent(
+              card.dataset.calendarAgendaCalendar ||
+              ""
+            );
 
-      renderMembers();
-      renderWorkspace();
+          const externalItem =
+            enabledExternalEvents().find(
+              event =>
+                event.id === itemId &&
+                event.externalCalendarId ===
+                  calendarId
+            );
 
-      $("detailsTitle").value = item.title || "";
-      $("detailsNotes").value = item.notes || "";
-      $("detailsType").value = item.type || "";
-      $("detailsDone").checked = item.done === true;
-      $("detailsDueDate").value = item.dueDate || "";
-      $("detailsEndDate").value = item.endDate || "";
-      $("detailsPriority").value = item.priority || "";
-      $("detailsRepeat").value = item.repeat || "none";
-      $("detailsPoints").value = item.points ?? 1;
-      $("detailsRepeatUntil").value = item.repeatUntil || "";
-      $("detailsRotationEnabled").checked =
-  item.rotationEnabled === true;
+          if (externalItem) {
+            showExternalCalendarEvent(
+              externalItem
+            );
+          }
 
-renderRotationMembers(item.rotationMembers || []);
+          return;
+        }
 
-$("detailsParticipantsPerOccurrence").value =
-  item.participantsPerOccurrence || 1;
+        const item =
+          nodes.find(
+            node => node.id === itemId
+          );
 
-$("detailsSharedEnabled").checked =
-  item.sharedEnabled === true;
+        if (!item) return;
 
-if (item.opportunityTaskEnabled) {
-  $("detailsAssignmentType").value = "opportunity";
-} else if (item.rotationEnabled) {
-  $("detailsAssignmentType").value = "rotating";
-} else if (item.sharedEnabled) {
-  $("detailsAssignmentType").value = "shared";
-} else {
-  $("detailsAssignmentType").value = "assigned";
-}
+        selectedMemberId = item.memberId;
+        selectedNode = item;
+        currentParentId =
+          item.parentId || null;
 
-renderSharedParticipants(item.participantIds || []);
+        renderMembers();
+        renderWorkspace();
 
-updateAssignmentControls();
+        $("detailsTitle").value =
+          item.title || "";
 
-$("detailsPanel").classList.remove("hidden");
-      $("detailsPanel").scrollIntoView({ behavior: "smooth" });
-    };
-  });
+        $("detailsNotes").value =
+          item.notes || "";
+
+        $("detailsType").value =
+          item.type || "";
+
+        $("detailsDone").checked =
+          item.done === true;
+
+        $("detailsDueDate").value =
+          item.dueDate || "";
+
+        $("detailsEndDate").value =
+          item.endDate || "";
+
+        $("detailsPriority").value =
+          item.priority || "";
+
+        $("detailsRepeat").value =
+          item.repeat || "none";
+
+        $("detailsPoints").value =
+          item.points ?? 1;
+
+        $("detailsRepeatUntil").value =
+          item.repeatUntil || "";
+
+        $("detailsRotationEnabled").checked =
+          item.rotationEnabled === true;
+
+        renderRotationMembers(
+          item.rotationMembers || []
+        );
+
+        $("detailsParticipantsPerOccurrence").value =
+          item.participantsPerOccurrence || 1;
+
+        $("detailsSharedEnabled").checked =
+          item.sharedEnabled === true;
+
+        if (item.opportunityTaskEnabled) {
+          $("detailsAssignmentType").value =
+            "opportunity";
+        } else if (item.rotationEnabled) {
+          $("detailsAssignmentType").value =
+            "rotating";
+        } else if (item.sharedEnabled) {
+          $("detailsAssignmentType").value =
+            "shared";
+        } else {
+          $("detailsAssignmentType").value =
+            "assigned";
+        }
+
+        renderSharedParticipants(
+          item.participantIds || []
+        );
+
+        updateAssignmentControls();
+
+        $("detailsPanel")
+          .classList.remove("hidden");
+
+        $("detailsPanel").scrollIntoView({
+          behavior: "smooth"
+        });
+      };
+    });
 
   panel.classList.remove("hidden");
-  panel.scrollIntoView({ behavior: "smooth" });
+  panel.scrollIntoView({
+    behavior: "smooth"
+  });
 }
 function updateGreeting() {
   const hour = new Date().getHours();
