@@ -368,7 +368,39 @@
   📅 Manage calendars
 </button>
 </div>
+<div class="calendar-view-switcher">
+  <button
+    id="calendarYearViewBtn"
+    type="button"
+    class="calendar-view-btn ghost"
+  >
+    Year
+  </button>
 
+  <button
+    id="calendarMonthViewBtn"
+    type="button"
+    class="calendar-view-btn active"
+  >
+    Month
+  </button>
+
+  <button
+    id="calendarDayViewBtn"
+    type="button"
+    class="calendar-view-btn ghost"
+  >
+    Day
+  </button>
+
+  <button
+    id="calendarTodayBtn"
+    type="button"
+    class="calendar-today-btn ghost"
+  >
+    Today
+  </button>
+</div>
   <div class="calendar-header">
     <button id="prevMonthBtn" type="button" class="ghost">←</button>
     <h3 id="calendarTitle">Month</h3>
@@ -376,6 +408,10 @@
   </div>
 
   <div id="calendarGrid" class="calendar-grid"></div>
+  <div
+  id="calendarYearGrid"
+  class="calendar-year-grid hidden"
+></div>
 
   <div id="calendarDayPanel" class="calendar-day-panel hidden">
     <h3 id="calendarDayTitle">Selected Day</h3>

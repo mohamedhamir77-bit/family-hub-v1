@@ -21,6 +21,7 @@ let currentParentId = null;
 let selectedNode = null;
 let selectedDashboardFilter = null;
 let calendarDate = new Date();
+let calendarView = "month";
 let parentMode = false;
 let activities = [];
 let pointTransactions = [];
@@ -3476,15 +3477,284 @@ document.querySelectorAll(".calendar-more").forEach(link => {
   };
 });
 }
+function renderYearCalendar() {
+  const year = calendarDate.getFullYear();
+  const yearGrid = $("calendarYearGrid");
 
+  $("calendarTitle").textContent = year;
+
+  const todayString = formatDateLocal(new Date());
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+
+  const weekdays = [
+    "S",
+    "M",
+    "T",
+    "W",
+    "T",
+    "F",
+    "S"
+  ];
+
+  const months = [];
+
+  for (let month = 0; month < 12; month++) {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    const days = [];
+
+    for (let i = 0; i < firstDay.getDay(); i++) {
+      days.push(`
+        <div class="calendar-mini-day empty"></div>
+      `);
+    }
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const dateString =
+        `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+      const familyHubItems = nodes.filter(node =>
+        (node.type === "task" || node.type === "event") &&
+        occursOnDate(node, dateString)
+      );
+
+      const externalItems = enabledExternalEvents().filter(
+        event => occursOnDate(event, dateString)
+      );
+
+      const itemsForDay = [
+        ...familyHubItems,
+        ...externalItems
+      ];
+
+      const isToday =
+        dateString === todayString;
+
+      const dots = itemsForDay
+  .slice(0, 3)
+  .map(item => {
+    const colour =
+      item.type === "external-event" &&
+      CALENDAR_COLOURS.includes(item.calendarColor)
+        ? item.calendarColor
+        : "blue";
+
+    return `
+      <span
+        class="
+          calendar-mini-event-dot
+          calendar-mini-event-dot-${colour}
+        "
+      ></span>
+    `;
+  })
+  .join("");
+
+      days.push(`
+        <div
+          class="calendar-mini-day ${isToday ? "today" : ""}"
+          data-year-date="${dateString}"
+        >
+          <span>${day}</span>
+
+          <div class="calendar-mini-event-dots">
+            ${dots}
+          </div>
+        </div>
+      `);
+    }
+
+    months.push(`
+      <div class="calendar-year-month">
+
+        <button
+          type="button"
+          class="calendar-year-month-title"
+          data-year-month="${month}"
+        >
+          ${monthNames[month]}
+        </button>
+
+        <div class="calendar-mini-weekdays">
+          ${weekdays.map(day => `
+            <div class="calendar-mini-weekday">
+              ${day}
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="calendar-mini-days">
+          ${days.join("")}
+        </div>
+
+      </div>
+    `);
+  }
+
+  yearGrid.innerHTML = months.join("");
+
+  document
+    .querySelectorAll("[data-year-month]")
+    .forEach(button => {
+      button.onclick = () => {
+        calendarDate.setMonth(
+          Number(button.dataset.yearMonth)
+        );
+
+        setCalendarView("month");
+      };
+    });
+
+  document
+    .querySelectorAll("[data-year-date]")
+    .forEach(day => {
+      day.onclick = () => {
+        const dateString =
+          day.dataset.yearDate;
+
+        calendarDate =
+          new Date(`${dateString}T00:00:00`);
+
+        setCalendarView("day");
+        showCalendarDay(dateString);
+      };
+    });
+}
+function setCalendarView(view) {
+  calendarView = view;
+
+  const monthGrid = $("calendarGrid");
+  const yearGrid = $("calendarYearGrid");
+  const dayPanel = $("calendarDayPanel");
+
+  monthGrid.classList.toggle(
+    "hidden",
+    view !== "month"
+  );
+
+  yearGrid.classList.toggle(
+    "hidden",
+    view !== "year"
+  );
+
+  dayPanel.classList.toggle(
+    "hidden",
+    view !== "day"
+  );
+
+  const buttons = [
+    ["calendarYearViewBtn", "year"],
+    ["calendarMonthViewBtn", "month"],
+    ["calendarDayViewBtn", "day"]
+  ];
+
+  buttons.forEach(([id, buttonView]) => {
+    const button = $(id);
+    const isActive = buttonView === view;
+
+    button.classList.toggle(
+      "active",
+      isActive
+    );
+
+    button.classList.toggle(
+      "ghost",
+      !isActive
+    );
+  });
+
+  if (view === "year") {
+    renderYearCalendar();
+    return;
+  }
+
+  if (view === "month") {
+    renderCalendar();
+    return;
+  }
+
+  if (view === "day") {
+    const dateString =
+      formatDateLocal(calendarDate);
+
+    showCalendarDay(dateString);
+  }
+}
+
+$("calendarYearViewBtn").onclick = () => {
+  setCalendarView("year");
+};
+
+$("calendarMonthViewBtn").onclick = () => {
+  setCalendarView("month");
+};
+
+$("calendarDayViewBtn").onclick = () => {
+  setCalendarView("day");
+};
+
+$("calendarTodayBtn").onclick = () => {
+  calendarDate = new Date();
+
+  setCalendarView(calendarView);
+};
 $("prevMonthBtn").onclick = () => {
-  calendarDate.setMonth(calendarDate.getMonth() - 1);
-  renderCalendar();
+  if (calendarView === "year") {
+    calendarDate.setFullYear(
+      calendarDate.getFullYear() - 1
+    );
+  }
+
+  if (calendarView === "month") {
+    calendarDate.setMonth(
+      calendarDate.getMonth() - 1
+    );
+  }
+
+  if (calendarView === "day") {
+    calendarDate.setDate(
+      calendarDate.getDate() - 1
+    );
+  }
+
+  setCalendarView(calendarView);
 };
 
 $("nextMonthBtn").onclick = () => {
-  calendarDate.setMonth(calendarDate.getMonth() + 1);
-  renderCalendar();
+  if (calendarView === "year") {
+    calendarDate.setFullYear(
+      calendarDate.getFullYear() + 1
+    );
+  }
+
+  if (calendarView === "month") {
+    calendarDate.setMonth(
+      calendarDate.getMonth() + 1
+    );
+  }
+
+  if (calendarView === "day") {
+    calendarDate.setDate(
+      calendarDate.getDate() + 1
+    );
+  }
+
+  setCalendarView(calendarView);
 };
 function showCalendarDay(dateString) {
   const panel = $("calendarDayPanel");
